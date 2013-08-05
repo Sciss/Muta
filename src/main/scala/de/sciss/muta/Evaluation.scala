@@ -1,3 +1,3 @@
 package de.sciss.muta
 
-trait Evaluation[S <: Sys[S]] extends (S#Chromosome => Double)
+trait Evaluation[Chromosome] extends (Chromosome => Double)

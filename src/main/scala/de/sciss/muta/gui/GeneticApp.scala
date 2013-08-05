@@ -5,7 +5,7 @@ import de.sciss.desktop.impl.SwingApplicationImpl
 import de.sciss.desktop.{KeyStrokes, Menu}
 import java.awt.event.KeyEvent
 
-abstract class GeneticApp[S <: Sys[S]](val system: S) extends SwingApplicationImpl("Genetic Algorithm") {
+abstract class GeneticApp[S <: Sys](val system: S) extends SwingApplicationImpl("Genetic Algorithm") {
   app =>
 
   type Document = Unit // gui.Document

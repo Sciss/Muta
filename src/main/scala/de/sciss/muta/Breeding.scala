@@ -2,13 +2,13 @@ package de.sciss.muta
 
 // trait Breeding[S <: Sys[S]] extends ((S#GenomeSel, S#Global, util.Random) => S#Genome)
 
-case class Breeding[S <: Sys[S]](elitism        : SelectionSize     = SelectionNumber(5),
-                                 crossoverWeight: SelectionPercent  = SelectionPercent(80),
-                                 crossover      : BreedingFunction[S],
-                                 mutation       : BreedingFunction[S])
-  extends ((S#GenomeSel, S#Global, util.Random) => S#Genome) {
+case class Breeding[Chromosome, Global](elitism        : SelectionSize     = SelectionNumber(5),
+                              crossoverWeight: SelectionPercent  = SelectionPercent(80),
+                              crossover      : BreedingFunction[Chromosome, Global],
+                              mutation       : BreedingFunction[Chromosome, Global])
+  extends ((Vec[(Chromosome, Double, Boolean)], Global, util.Random) => Vec[Chromosome]) {
 
-  override def apply(g: S#GenomeSel, global: S#Global, r: util.Random): S#Genome = {
+  override def apply(g: Vec[(Chromosome, Double, Boolean)], global: Global, r: util.Random): Vec[Chromosome] = {
     val szOut = g.size
     val szEl  = elitism(szOut)
     val out1  = if (szEl == 0) Vec.empty else {
@@ -28,4 +28,4 @@ case class Breeding[S <: Sys[S]](elitism        : SelectionSize     = SelectionN
   }
 }
 
-trait BreedingFunction[S <: Sys[S]] extends ((S#Genome, Int, S#Global, util.Random) => S#Genome)
+trait BreedingFunction[Chromosome, Global] extends ((Vec[Chromosome], Int, Global, util.Random) => Vec[Chromosome])

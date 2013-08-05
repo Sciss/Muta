@@ -19,21 +19,24 @@ import scala.concurrent.ExecutionContext
 import de.sciss.guiflitz.AutoView
 
 object DocumentFrame {
-  final class Node[S <: Sys[S]](val index: Int, val chromosome: S#Chromosome, var fitness: Double = Double.NaN,
-                                var selected: Boolean = false, val children: Vec[Node[S]] = Vec.empty)
+//  final class Node[S <: Sys](val index: Int, val chromosome: system.Chromosome, var fitness: Double = Double.NaN,
+//                                var selected: Boolean = false, val children: Vec[Node[S]] = Vec.empty)
 }
-final class DocumentFrame[S <: Sys[S]](val app: GeneticApp[S]) { outer =>
-  type Node = DocumentFrame.Node[S]
+final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
+  // type Node = DocumentFrame.Node[S]
 
   import app.system
 
+  final class Node(val index: Int, val chromosome: system.Chromosome, var fitness: Double = Double.NaN,
+                   var selected: Boolean = false, val children: Vec[Node] = Vec.empty)
+
   var random      = system.rng(0L)
-  var evaluation: Evaluation[S] = system.defaultEvaluation  // EvalWindowed()
-  var selection : Selection [S] = system.defaultSelection   // Roulette    ()
-  var breeding  : Breeding  [S] = system.defaultBreeding    // Breeding    ()
+  var evaluation: system.Evaluation  = system.defaultEvaluation  // EvalWindowed()
+  var selection : system.Selection   = system.defaultSelection   // Roulette    ()
+  var breeding  : system.Breeding    = system.defaultBreeding    // Breeding    ()
   // var generation: Generation  = Generation  ()
-  def generation: Generation[S] = pGen .cell()
-  def generation_=(value: Generation[S]) { pGen.cell() = value }
+  def generation: system.Generation = pGen .cell()
+  def generation_=(value: system.Generation) { pGen.cell() = value }
   def info      : HeaderInfo  = pInfo.cell()
   def info_=(value: HeaderInfo) { pInfo.cell() = value }
   def iterations: Int         = info.iterations
@@ -62,7 +65,7 @@ final class DocumentFrame[S <: Sys[S]](val app: GeneticApp[S]) { outer =>
   avCfg.small     = true
   val pGen        = {
     // import system.globalTypeTag
-    import system.selfTypeTag
+    // import system.generationTypeTag
     AutoView(system.defaultGeneration, avCfg)
   }
   //    form"""   Duration:|$ggDur |\u2669
@@ -71,8 +74,8 @@ final class DocumentFrame[S <: Sys[S]](val app: GeneticApp[S]) { outer =>
   val pInfo     = AutoView(HeaderInfo(), avCfg)
 
   //                                       index            fitness selected
-  type ColMTop = TreeColumnModel.Tuple4[Node, Int, S#Chromosome, Double, Boolean]
-  type ColMBot = TreeColumnModel.Tuple2[Node, Int, S#Chromosome]
+  type ColMTop = TreeColumnModel.Tuple4[Node, Int, system.Chromosome, Double, Boolean]
+  type ColMBot = TreeColumnModel.Tuple2[Node, Int, system.Chromosome]
 
   val seqCol    = new TreeColumnModel.Column[Node, Int]("Index") {
     def apply     (node: Node): Int = node.index
@@ -80,9 +83,9 @@ final class DocumentFrame[S <: Sys[S]](val app: GeneticApp[S]) { outer =>
     def isEditable(node: Node) = false
   }
 
-  val chromoCol = new TreeColumnModel.Column[Node, S#Chromosome]("Chromosome")(system.chromosomeClassTag) {
-    def apply     (node: Node): S#Chromosome = node.chromosome
-    def update    (node: Node, value: S#Chromosome) {}
+  val chromoCol = new TreeColumnModel.Column[Node, system.Chromosome]("Chromosome")(system.chromosomeClassTag) {
+    def apply     (node: Node): system.Chromosome = node.chromosome
+    def update    (node: Node, value: system.Chromosome) {}
     def isEditable(node: Node) = false
   }
 
@@ -191,7 +194,7 @@ final class DocumentFrame[S <: Sys[S]](val app: GeneticApp[S]) { outer =>
         super.getTreeTableCellRendererComponent(treeTable, value, selected, hasFocus, row, column)
         value match {
           // XXX TODO
-          //          case c: S#Chromosome =>
+          //          case c: system.Chromosome =>
           //            // import Fitness._
           //            val cn  = c.map(_.normalized)
           //            val sz  = ChromosomeView.preferredSize(cn)
@@ -231,13 +234,14 @@ final class DocumentFrame[S <: Sys[S]](val app: GeneticApp[S]) { outer =>
     // contents += ggGen
   }
 
-  def settings: Settings[S] = Settings(info, generation, evaluation, selection, breeding)
-  def settings_=(s: Settings[S]) {
-    evaluation  = s.evaluation
-    selection   = s.selection
-    breeding    = s.breeding
-    info        = s.info
-    generation  = s.generation
+  def settings: Settings[system.Chromosome, system.Global] = ??? // Settings(info, generation, evaluation, selection, breeding)
+  def settings_=(s: Settings[system.Chromosome, system.Global]) {
+    ??? // XXX TODO
+//    evaluation  = s.evaluation
+//    selection   = s.selection
+//    breeding    = s.breeding
+//    info        = s.info
+//    generation  = s.generation
   }
 
   def duration = ??? // XXX TODO generation.wholeDur
@@ -472,7 +476,7 @@ final class DocumentFrame[S <: Sys[S]](val app: GeneticApp[S]) { outer =>
     front()
   }
 
-  def exportTableAsPDF(f: File, genome: S#GenomeVal) {
+  def exportTableAsPDF(f: File, genome: system.GenomeVal) {
     // XXX TODO
     //    import sys.process._
     //    val f1 = f.replaceExt("pdf")

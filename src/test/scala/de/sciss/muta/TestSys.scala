@@ -1,38 +1,49 @@
-package de.sciss.muta
+package de.sciss
+package muta
 
 import reflect.runtime.{universe => ru}
 
-class TestSys extends Sys[TestSys] {
-  type S          = TestSys
+trait TestSysLike extends Sys {
   type Chromosome = Vec[Boolean]
   type Global     = Unit
 
-  def defaultGeneration: Generation[S] = Generation[S](global = ())
-
-  def defaultEvaluation: Evaluation[S] = EvalConst()
-
-  def defaultSelection: Selection[S] = SelectTrunc()
-
-  def defaultBreeding: Breeding[S] = Breeding(crossover = CrossoverImpl, mutation = MutationImpl)
-
   val chromosomeClassTag  = reflect.classTag[Chromosome]
-  val selfTypeTag         = ru     .typeTag [TestSys   ]
+  // val generationTypeTag   = ru     .typeTag [S#Generation]
 }
 
-case class EvalConst(d: Double = 0.0) extends Evaluation[TestSys] {
-  def apply(sq: TestSys#Chromosome): Double = d
+object TestSys extends TestSysLike {
+  type S          = TestSys.type
+
+  case class Generation(size: Int = 100, global: Unit = (), seed: Int = 0) extends muta.Generation[Global]
+
+  // type Generation = muta.Generation[S]
+  type Evaluation = muta.Evaluation[Chromosome]
+  type Selection  = muta.Selection [Chromosome]
+  type Breeding   = muta.Breeding  [Chromosome, Global]
+
+  def defaultGeneration: Generation = Generation()
+  def defaultEvaluation: Evaluation = EvalConst()
+  def defaultSelection : Selection  = SelectTrunc()
+  def defaultBreeding  : Breeding   = Breeding(crossover = CrossoverImpl, mutation = MutationImpl)
+
+  // lazy val selfTypeTag        = ru     .typeTag [TestSys.type]
+  // lazy val generationTypeTag  = ru     .typeTag [Generation]
 }
 
-case class SelectTrunc(size: SelectionSize = SelectionPercent()) extends Selection[TestSys] {
-  override def apply(pop: TestSys#GenomeVal, rnd: util.Random): TestSys#Genome = {
+case class EvalConst(d: Double = 0.0) extends Evaluation[TestSys.Chromosome] {
+  def apply(sq: TestSys.Chromosome): Double = d
+}
+
+case class SelectTrunc(size: SelectionSize = SelectionPercent()) extends Selection[TestSys.Chromosome] {
+  override def apply(pop: TestSys.GenomeVal, rnd: util.Random): TestSys.Genome = {
     val n       = size(pop.size)
     val sorted  = pop.sortBy(_._2)
     sorted.takeRight(n).map(_._1)
   }
 }
 
-object CrossoverImpl extends BreedingFunction[TestSys] {
-  def apply(gen: TestSys#Genome, num: Int, glob: TestSys#Global, rand: util.Random): TestSys#Genome = Vec.fill(num) {
+object CrossoverImpl extends BreedingFunction[TestSys.Chromosome, TestSys.Global] {
+  def apply(gen: TestSys.Genome, num: Int, glob: TestSys.Global, rand: util.Random): TestSys.Genome = Vec.fill(num) {
     val i   = rand.nextInt(gen.size)
     val j   = rand.nextInt(gen.size)
     val gi  = gen(i)
@@ -42,8 +53,8 @@ object CrossoverImpl extends BreedingFunction[TestSys] {
   }
 }
 
-object MutationImpl extends BreedingFunction[TestSys] {
-  def apply(gen: TestSys#Genome, num: Int, glob: TestSys#Global, rand: util.Random): TestSys#Genome = Vec.fill(num) {
+object MutationImpl extends BreedingFunction[TestSys.Chromosome, TestSys.Global] {
+  def apply(gen: TestSys.Genome, num: Int, glob: TestSys.Global, rand: util.Random): TestSys.Genome = Vec.fill(num) {
     val i   = rand.nextInt(gen.size)
     val gi  = gen(i)
     val mut = rand.nextInt(gi.size / 10 + 1 )

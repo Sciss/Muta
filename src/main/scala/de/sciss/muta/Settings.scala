@@ -1,4 +1,5 @@
 package de.sciss.muta
 
-case class Settings[S <: Sys[S]](info: HeaderInfo /* [S] */, generation: Generation[S],
-                    evaluation: Evaluation[S], selection: Selection[S], breeding: Breeding[S])
+case class Settings[Chromosome, Global](info: HeaderInfo /* [S] */, generation: Generation[Global],
+                    evaluation: Evaluation[Chromosome], selection: Selection[Chromosome],
+                    breeding: Breeding[Chromosome, Global])
