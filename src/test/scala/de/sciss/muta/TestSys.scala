@@ -20,7 +20,7 @@ object TestSys extends System {
   sealed trait Selection  extends muta.Selection [Chromosome]
   sealed trait BreedingFunction extends muta.BreedingFunction[TestSys.Chromosome, TestSys.Global]
 
-  case class Breeding(elitism        : SelectionSize      = SelectionNumber(5),
+  case class Breeding(elitism       : SelectionSize      = SelectionNumber(5),
                      crossoverWeight: SelectionPercent   = SelectionPercent(80),
                      crossover      : BreedingFunction   = CrossoverImpl,
                      mutation       : BreedingFunction   = MutationImpl)
