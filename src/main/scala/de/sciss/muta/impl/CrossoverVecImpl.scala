@@ -1,6 +1,7 @@
 package de.sciss.muta
 package impl
 
+/** Implements a single-point cross over between two chromosomes. */
 trait CrossoverVecImpl[A, Global] extends BreedingFunction[Vec[A], Global] {
   type Chromosome = Vec[A]
   type Genome     = Vec[Chromosome]

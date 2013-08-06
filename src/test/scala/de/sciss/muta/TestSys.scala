@@ -56,5 +56,5 @@ case class SelectTrunc(size: SelectionSize = SelectionPercent())
 object CrossoverImpl extends impl.CrossoverVecImpl[Boolean, TestSys.Global] with TestSys.BreedingFunction
 
 object MutationImpl extends impl.MutationVecImpl[Boolean, TestSys.Global] with TestSys.BreedingFunction {
-  def mutate(gene: Boolean) = !gene
+  def mutate(gene: Boolean)(implicit r: util.Random) = !gene
 }
