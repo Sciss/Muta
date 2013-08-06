@@ -1,13 +1,13 @@
 package de.sciss.muta
 package gui
 
-import scala.swing.{Label, Component, Action, SplitPane, FlowPanel, Orientation, Swing, BoxPanel, BorderPanel, ScrollPane, Button}
+import scala.swing.{Label, Action, SplitPane, FlowPanel, Orientation, Swing, BoxPanel, BorderPanel, ScrollPane, Button}
 import Swing._
 import de.sciss.desktop.impl.WindowImpl
 import de.sciss.desktop.{FileDialog, Window}
-import javax.swing.{Icon, SpinnerNumberModel}
+import javax.swing.SpinnerNumberModel
 import de.sciss.treetable.{AbstractTreeModel, TreeColumnModel, TreeTable, TreeTableCellRenderer, j}
-import java.awt.{EventQueue, Graphics, Graphics2D}
+import java.awt.EventQueue
 import collection.immutable.{IndexedSeq => Vec}
 import de.sciss.swingplus.Spinner
 import de.sciss.treetable.j.DefaultTreeTableSorter
@@ -27,7 +27,6 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
 
   type S1 = S
 
-  import app.system
   val sys: S1 = app.system
 
   final class Node(val index: Int, val chromosome: sys.Chromosome, var fitness: Double = Double.NaN,
@@ -143,7 +142,7 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
 
     protected def adjustColumns(): Unit
 
-    def updateNodes(nodes: Vec[Node]) {
+    def updateNodes(nodes: Vec[Node]): Unit = {
       // val old = root.children
       // root.children = Vec.empty
       // fireNodesRemoved(old: _*)
@@ -155,21 +154,15 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
       // fireRootChanged()
     }
 
-    def refreshNodes() {
-      fireNodesChanged(root.children: _*)
-    }
+    def refreshNodes(): Unit = fireNodesChanged(root.children: _*)
   }
 
   object tmTop extends TreeModel {
-    protected def adjustColumns() {
-      outer.adjustColumns(ttTop)
-    }
+    protected def adjustColumns(): Unit = outer.adjustColumns(ttTop)
   }
 
   object tmBot extends TreeModel {
-    protected def adjustColumns() {
-      outer.adjustColumns(ttBot)
-    }
+    protected def adjustColumns(): Unit = outer.adjustColumns(ttBot)
   }
 
   private class ChromosomeRenderer extends j.DefaultTreeTableCellRenderer {
@@ -232,7 +225,7 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
   }
 
   def settings: Settings { type S = sys.type } = Settings(sys)(info, generation, evaluation, selection, breeding)
-  def settings_=(s: Settings { type S = sys.type }) {
+  def settings_=(s: Settings { type S = sys.type }): Unit = {
     evaluation  = s.evaluation
     selection   = s.selection
     breeding    = s.breeding
@@ -240,7 +233,7 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
     generation  = s.generation
   }
 
-  def stepEval(genome: Vec[Node]) {
+  def stepEval(genome: Vec[Node]): Unit = {
     val fun = evaluation
     var min = Double.MaxValue
     var max = Double.MinValue
@@ -260,7 +253,7 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
     }
   }
 
-  def stepSelect(genome: Vec[Node]) {
+  def stepSelect(genome: Vec[Node]): Unit = {
     val fun       = selection
     val selected  = fun(genome.map(node => (node.chromosome, node.fitness)), random).toSet
     genome.foreach { node =>
@@ -278,9 +271,8 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
 
   def selectedNodes = ttTop.selection.paths.map(_.last).toIndexedSeq.sortBy(-_.fitness)
 
-  def defer(thunk: => Unit) {
+  def defer(thunk: => Unit): Unit =
     if (EventQueue.isDispatchThread) thunk else onEDT(thunk)
-  }
 
   val settingsViewConfig = {
     val res = AutoView.Config()
@@ -465,7 +457,7 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
     front()
   }
 
-  def exportTableAsPDF(f: File, genome: sys.GenomeVal) {
+  def exportTableAsPDF(f: File, genome: sys.GenomeVal): Unit = {
     // XXX TODO
     //    import sys.process._
     //    val f1 = f.replaceExt("pdf")
