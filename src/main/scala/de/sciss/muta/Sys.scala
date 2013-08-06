@@ -33,7 +33,12 @@ trait Sys {
 
   // implicit def generationTypeTag: ru.TypeTag[Generation]
 
+  // ---- these should disappear; they are needed because of limitations of AutoView's type resolution ----
+
   def generationView(config: AutoView.Config): AutoView[Generation]
+  def evaluationView(config: AutoView.Config): AutoView[Evaluation]
+  def selectionView (config: AutoView.Config): AutoView[Selection ]
+  def breedingView  (config: AutoView.Config): AutoView[Breeding  ]
 
   // def randomChromosome(global: Global)(implicit random: util.Random): Chromosome
 

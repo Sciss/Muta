@@ -282,6 +282,25 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
     if (EventQueue.isDispatchThread) thunk else onEDT(thunk)
   }
 
+  val settingsViewConfig = {
+    val res = AutoView.Config()
+    res.small = true
+    res.build
+  }
+
+  def mkSettingsButton[A](title: String)(view: AutoView.Config => AutoView[A])(setter: A => Unit): Button = {
+    val but = Button("Settings") {
+      val av  = view(settingsViewConfig)
+      /* val ef = */ new SettingsFrame(app, av, title = title)
+      av.cell.addListener {
+        case value => setter(value)
+      }
+    }
+    but.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
+    but.peer.putClientProperty("JButton.segmentPosition", "last")
+    but
+  }
+
   val pButtons = new FlowPanel {
     contents += new BoxPanel(Orientation.Horizontal) {
       val ggGen = Button("Generate") {
@@ -306,15 +325,7 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
       }
       ggEval.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
       ggEval.peer.putClientProperty("JButton.segmentPosition", "first")
-      val ggEvalSettings = Button("Settings") {
-        // XXX TODO
-        //        val ef = new EvaluationSettingsFrame(evaluation)
-        //        ef.view.cell.addListener {
-        //          case value => evaluation = value
-        //        }
-      }
-      ggEvalSettings.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
-      ggEvalSettings.peer.putClientProperty("JButton.segmentPosition", "last")
+      val ggEvalSettings = mkSettingsButton[sys.Evaluation]("Evaluation")(sys.evaluationView)(evaluation = _)
 
       val ggSel = Button("Select") {
         stepSelect(tmTop.root.children)
@@ -323,15 +334,7 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
       }
       ggSel.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
       ggSel.peer.putClientProperty("JButton.segmentPosition", "first")
-      val ggSelSettings = Button("Settings") {
-        // XXX TODO
-        //        val sf = new SelectionSettingsFrame(selection)
-        //        sf.view.cell.addListener {
-        //          case value => selection = value
-        //        }
-      }
-      ggSelSettings.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
-      ggSelSettings.peer.putClientProperty("JButton.segmentPosition", "last")
+      val ggSelSettings = mkSettingsButton[sys.Selection]("Selection")(sys.selectionView)(selection = _)
 
       val ggBreed = Button("Breed") {
         val newNodes = stepBreed(tmTop.root.children)
@@ -339,15 +342,7 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
       }
       ggBreed.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
       ggBreed.peer.putClientProperty("JButton.segmentPosition", "first")
-      val ggBreedSettings = Button("Settings") {
-        // XXX TODO
-        //        val bf = new BreedingSettingsFrame(breeding)
-        //        bf.view.cell.addListener {
-        //          case value => breeding = value
-        //        }
-      }
-      ggBreedSettings.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
-      ggBreedSettings.peer.putClientProperty("JButton.segmentPosition", "last")
+      val ggBreedSettings = mkSettingsButton[sys.Breeding]("Breeding")(sys.breedingView)(breeding = _)
 
       val ggFeed = Button("\u21E7") {
         tmTop.updateNodes(tmBot.root.children)
