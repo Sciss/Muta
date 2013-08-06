@@ -4,7 +4,7 @@ package de.sciss.muta
 //  // def wholeDur = Rational(duration, 4)
 //}
 
-trait Generation[Global] {
+trait Generation[Chromosome, Global] extends (util.Random => Chromosome) {
   def size: Int
   def global: Global
   def seed: Int

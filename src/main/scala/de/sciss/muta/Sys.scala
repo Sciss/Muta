@@ -3,6 +3,7 @@ package muta
 
 import scala.reflect.ClassTag
 import reflect.runtime.{universe => ru}
+import de.sciss.guiflitz.AutoView
 
 trait Sys {
   type S <: Sys
@@ -16,7 +17,7 @@ trait Sys {
 
   def rng(seed: Long = 0L): util.Random = new util.Random(seed)
 
-  type Generation <: muta.Generation[Global]
+  type Generation <: muta.Generation[Chromosome, Global]
   type Evaluation <: muta.Evaluation[Chromosome]
   type Selection  <: muta.Selection [Chromosome]
   type Breeding   <: muta.Breeding  [Chromosome, Global]
@@ -31,4 +32,11 @@ trait Sys {
   // implicit def selfTypeTag: ru.TypeTag[S]
 
   // implicit def generationTypeTag: ru.TypeTag[Generation]
+
+  def generationView(config: AutoView.Config): AutoView[Generation]
+
+  // def randomChromosome(global: Global)(implicit random: util.Random): Chromosome
+
+  def chromosomeView(c: Chromosome, default: swing.Label, selected: Boolean, focused: Boolean): swing.Component =
+    default
 }

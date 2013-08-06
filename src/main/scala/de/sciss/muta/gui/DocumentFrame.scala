@@ -1,7 +1,7 @@
 package de.sciss.muta
 package gui
 
-import scala.swing.{Action, SplitPane, FlowPanel, Orientation, Swing, BoxPanel, BorderPanel, ScrollPane, Button}
+import scala.swing.{Label, Component, Action, SplitPane, FlowPanel, Orientation, Swing, BoxPanel, BorderPanel, ScrollPane, Button}
 import Swing._
 import de.sciss.desktop.impl.WindowImpl
 import de.sciss.desktop.{FileDialog, Window}
@@ -25,18 +25,21 @@ object DocumentFrame {
 final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
   // type Node = DocumentFrame.Node[S]
 
-  import app.system
+  type S1 = S
 
-  final class Node(val index: Int, val chromosome: system.Chromosome, var fitness: Double = Double.NaN,
+  import app.system
+  val sys: S1 = app.system
+
+  final class Node(val index: Int, val chromosome: sys.Chromosome, var fitness: Double = Double.NaN,
                    var selected: Boolean = false, val children: Vec[Node] = Vec.empty)
 
-  var random      = system.rng(0L)
-  var evaluation: system.Evaluation  = system.defaultEvaluation  // EvalWindowed()
-  var selection : system.Selection   = system.defaultSelection   // Roulette    ()
-  var breeding  : system.Breeding    = system.defaultBreeding    // Breeding    ()
+  var random      = sys.rng(0L)
+  var evaluation: sys.Evaluation  = sys.defaultEvaluation  // EvalWindowed()
+  var selection : sys.Selection   = sys.defaultSelection   // Roulette    ()
+  var breeding  : sys.Breeding    = sys.defaultBreeding    // Breeding    ()
   // var generation: Generation  = Generation  ()
-  def generation: system.Generation = pGen .cell()
-  def generation_=(value: system.Generation) { pGen.cell() = value }
+  def generation: sys.Generation = pGen .cell()
+  def generation_=(value: sys.Generation) { pGen.cell() = value }
   def info      : HeaderInfo  = pInfo.cell()
   def info_=(value: HeaderInfo) { pInfo.cell() = value }
   def iterations: Int         = info.iterations
@@ -66,7 +69,8 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
   val pGen        = {
     // import system.globalTypeTag
     // import system.generationTypeTag
-    AutoView(system.defaultGeneration, avCfg)
+    // AutoView(system.defaultGeneration, avCfg)
+    sys.generationView(avCfg)
   }
   //    form"""   Duration:|$ggDur |\u2669
   //          |       Seed:|$ggSeed|$ggRandSeed
@@ -74,8 +78,8 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
   val pInfo     = AutoView(HeaderInfo(), avCfg)
 
   //                                       index            fitness selected
-  type ColMTop = TreeColumnModel.Tuple4[Node, Int, system.Chromosome, Double, Boolean]
-  type ColMBot = TreeColumnModel.Tuple2[Node, Int, system.Chromosome]
+  type ColMTop = TreeColumnModel.Tuple4[Node, Int, sys.Chromosome, Double, Boolean]
+  type ColMBot = TreeColumnModel.Tuple2[Node, Int, sys.Chromosome]
 
   val seqCol    = new TreeColumnModel.Column[Node, Int]("Index") {
     def apply     (node: Node): Int = node.index
@@ -83,9 +87,9 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
     def isEditable(node: Node) = false
   }
 
-  val chromoCol = new TreeColumnModel.Column[Node, system.Chromosome]("Chromosome")(system.chromosomeClassTag) {
-    def apply     (node: Node): system.Chromosome = node.chromosome
-    def update    (node: Node, value: system.Chromosome) {}
+  val chromoCol = new TreeColumnModel.Column[Node, sys.Chromosome]("Chromosome")(sys.chromosomeClassTag) {
+    def apply     (node: Node): sys.Chromosome = node.chromosome
+    def update    (node: Node, value: sys.Chromosome) {}
     def isEditable(node: Node) = false
   }
 
@@ -124,9 +128,9 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
   }
 
   abstract class TreeModel extends AbstractTreeModel[Node] {
-    var root = new Node(index = -1, chromosome = ??? /* XXX TODO Vec.empty */)
+    var root = new Node(index = -1, chromosome = null.asInstanceOf[sys.Chromosome])
 
-    def getChildCount(parent: Node            ): Int     = parent.children.size
+    def getChildCount(parent: Node            ): Int  = parent.children.size
     def getChild     (parent: Node, index: Int): Node = parent.children(index)
 
     def isLeaf(node: Node): Boolean = getChildCount(node) == 0
@@ -144,7 +148,7 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
       // root.children = Vec.empty
       // fireNodesRemoved(old: _*)
       // root.children = nodes
-      root = new Node(index = -1, chromosome = ??? /* XXX TODO Vec.empty */, children = nodes)
+      root = new Node(index = -1, chromosome = null.asInstanceOf[sys.Chromosome], children = nodes)
       // fireNodesInserted(nodes: _*)
       fireStructureChanged(root)
       adjustColumns()
@@ -168,6 +172,25 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
     }
   }
 
+  private class ChromosomeRenderer extends j.DefaultTreeTableCellRenderer {
+    renderer =>
+
+    private lazy val wrap = new Label { override lazy val peer = renderer }
+
+    override def getTreeTableCellRendererComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
+                                                   hasFocus: Boolean, row: Int, column: Int): java.awt.Component = {
+      super.getTreeTableCellRendererComponent(treeTable, value, selected, hasFocus, row, column)
+      // XXX TODO: `column` is physical column, not logical column.
+      if (column == 1) {
+        val swing = sys.chromosomeView(value.asInstanceOf[sys.Chromosome],
+          default = wrap, selected = selected, focused = hasFocus)
+        swing.peer
+      } else {
+        this
+      }
+    }
+  }
+
   def mkTreeTable[Col <: TreeColumnModel[Node]](tm: TreeModel, tcm: Col): TreeTable[Node, Col] = {
     val tt                  = new TreeTable[Node, Col](tm, tcm)
     tt.rootVisible          = false
@@ -188,33 +211,7 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
 
     // tt.expandPath(TreeTable.Path.empty)
     // XXX TODO: working around TreeTable issue #1
-    tt.peer.setDefaultRenderer(classOf[Vec[_]], new j.DefaultTreeTableCellRenderer {
-      override def getTreeTableCellRendererComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
-                                                     hasFocus: Boolean, row: Int, column: Int): java.awt.Component = {
-        super.getTreeTableCellRendererComponent(treeTable, value, selected, hasFocus, row, column)
-        value match {
-          // XXX TODO
-          //          case c: system.Chromosome =>
-          //            // import Fitness._
-          //            val cn  = c.map(_.normalized)
-          //            val sz  = ChromosomeView.preferredSize(cn)
-          //            setText(null)
-          //            setIcon(new Icon {
-          //              def getIconWidth  = sz.width
-          //              def getIconHeight = sz.height
-          //
-          //              def paintIcon(c: java.awt.Component, g: Graphics, x: Int, y: Int) {
-          //                g.translate(x, y)
-          //                val widthDur = duration.toDouble * 1.1
-          //                ChromosomeView.paint(cn, g.asInstanceOf[Graphics2D], getWidth - x, getHeight - y, widthDur)
-          //                g.translate(-x, -y)
-          //              }
-          //            })
-          case _ =>
-        }
-        this
-      }
-    })
+    tt.peer.setDefaultRenderer(sys.chromosomeClassTag.runtimeClass, new ChromosomeRenderer)  // XXX TODO: to avoid conflict, should specify logical column index
     tt.peer.setDefaultRenderer(classOf[Int]       , TreeTableCellRenderer.Default.peer)
     tt.peer.setDefaultRenderer(classOf[Double]    , TreeTableCellRenderer.Default.peer)
     tt.peer.setDefaultRenderer(classOf[Boolean]   , TreeTableCellRenderer.Default.peer)
@@ -234,17 +231,14 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
     // contents += ggGen
   }
 
-  def settings: Settings[system.Chromosome, system.Global] = ??? // Settings(info, generation, evaluation, selection, breeding)
-  def settings_=(s: Settings[system.Chromosome, system.Global]) {
-    ??? // XXX TODO
-//    evaluation  = s.evaluation
-//    selection   = s.selection
-//    breeding    = s.breeding
-//    info        = s.info
-//    generation  = s.generation
+  def settings: Settings { type S = sys.type } = Settings(sys)(info, generation, evaluation, selection, breeding)
+  def settings_=(s: Settings { type S = sys.type }) {
+    evaluation  = s.evaluation
+    selection   = s.selection
+    breeding    = s.breeding
+    info        = s.info
+    generation  = s.generation
   }
-
-  def duration = ??? // XXX TODO generation.wholeDur
 
   def stepEval(genome: Vec[Node]) {
     val fun = evaluation
@@ -275,10 +269,10 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
   }
 
   def stepBreed(genome: Vec[Node]): Vec[Node] = {
-    val fun = breeding
-    val dur = duration
-    val r   = random
-    val n   = fun(genome.map(node => (node.chromosome, node.fitness, node.selected)), dur, r)
+    val fun   = breeding
+    val glob  = generation.global
+    val r     = random
+    val n     = fun(genome.map(node => (node.chromosome, node.fitness, node.selected)), glob, r)
     n.zipWithIndex.map { case (c, idx) => new Node(index = idx, chromosome = c)}
   }
 
@@ -291,12 +285,12 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
   val pButtons = new FlowPanel {
     contents += new BoxPanel(Orientation.Horizontal) {
       val ggGen = Button("Generate") {
-        implicit val r  = system.rng(generation.seed)
+        implicit val r  = sys.rng(generation.seed)
         random          = r
         val pop         = generation.size
-        val dur         = duration
+        // val glob        = generation.global
         val nodes       = Vector.tabulate(pop) { idx =>
-          val sq  = ??? // XXX TODO Fitness.randomSequence(dur)
+          val sq  = generation(r)
           new Node(index = idx, chromosome = sq)
         }
         tmTop.updateNodes(nodes)
@@ -476,7 +470,7 @@ final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
     front()
   }
 
-  def exportTableAsPDF(f: File, genome: system.GenomeVal) {
+  def exportTableAsPDF(f: File, genome: sys.GenomeVal) {
     // XXX TODO
     //    import sys.process._
     //    val f1 = f.replaceExt("pdf")

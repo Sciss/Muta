@@ -1,20 +1,21 @@
 package de.sciss
 package muta
 
-import reflect.runtime.{universe => ru}
+import de.sciss.guiflitz.AutoView
+import scala.util.Random
+import collection.breakOut
 
-trait TestSysLike extends Sys {
-  type Chromosome = Vec[Boolean]
-  type Global     = Unit
-
-  val chromosomeClassTag  = reflect.classTag[Chromosome]
-  // val generationTypeTag   = ru     .typeTag [S#Generation]
-}
-
-object TestSys extends TestSysLike {
+object TestSys extends Sys {
   type S          = TestSys.type
 
-  case class Generation(size: Int = 100, global: Unit = (), seed: Int = 0) extends muta.Generation[Global]
+  type Chromosome = Vec[Boolean]
+  type Global     = Int // number of bits
+
+  val chromosomeClassTag  = reflect.classTag[Chromosome]
+
+  case class Generation(size: Int = 100, global: Int = 32, seed: Int = 0) extends muta.Generation[Chromosome, Global] {
+    override def apply(random: Random): Chromosome = Vec.fill(global)(random.nextBoolean())
+  }
 
   // type Generation = muta.Generation[S]
   type Evaluation = muta.Evaluation[Chromosome]
@@ -22,16 +23,24 @@ object TestSys extends TestSysLike {
   type Breeding   = muta.Breeding  [Chromosome, Global]
 
   def defaultGeneration: Generation = Generation()
-  def defaultEvaluation: Evaluation = EvalConst()
+  def defaultEvaluation: Evaluation = EvalMatchConst()
   def defaultSelection : Selection  = SelectTrunc()
   def defaultBreeding  : Breeding   = Breeding(crossover = CrossoverImpl, mutation = MutationImpl)
 
   // lazy val selfTypeTag        = ru     .typeTag [TestSys.type]
   // lazy val generationTypeTag  = ru     .typeTag [Generation]
+
+  def generationView(config: AutoView.Config) = AutoView[Generation](defaultGeneration, config)
+
+  override def chromosomeView(c: Chromosome, default: swing.Label, selected: Boolean,
+                              focused: Boolean): swing.Component = {
+    default.text = c.map(if (_) '1' else '0')(breakOut): String
+    default
+  }
 }
 
-case class EvalConst(d: Double = 0.0) extends Evaluation[TestSys.Chromosome] {
-  def apply(sq: TestSys.Chromosome): Double = d
+case class EvalMatchConst(target: Boolean = false) extends Evaluation[TestSys.Chromosome] {
+  def apply(sq: TestSys.Chromosome): Double = sq.count(_ == target).toDouble / sq.size
 }
 
 case class SelectTrunc(size: SelectionSize = SelectionPercent()) extends Selection[TestSys.Chromosome] {
