@@ -19,10 +19,10 @@ import scala.concurrent.ExecutionContext
 import de.sciss.guiflitz.AutoView
 
 object DocumentFrame {
-//  final class Node[S <: Sys](val index: Int, val chromosome: system.Chromosome, var fitness: Double = Double.NaN,
+//  final class Node[S <: System](val index: Int, val chromosome: system.Chromosome, var fitness: Double = Double.NaN,
 //                                var selected: Boolean = false, val children: Vec[Node[S]] = Vec.empty)
 }
-final class DocumentFrame[S <: Sys](val app: GeneticApp[S]) { outer =>
+final class DocumentFrame[S <: System](val app: GeneticApp[S]) { outer =>
   // type Node = DocumentFrame.Node[S]
 
   type S1 = S

@@ -1,11 +1,11 @@
 package de.sciss.muta
 
-//class Settings[S <: Sys](val system: S)(val info: HeaderInfo, val generation: system.Generation,
+//class Settings[S <: System](val system: S)(val info: HeaderInfo, val generation: system.Generation,
 //                                    evaluation: system.Evaluation, selection: system.Selection,
 //                                    breeding: system.Breeding)
 
 object Settings {
-  def apply(sys: Sys)(info: HeaderInfo, generation: sys.Generation, evaluation: sys.Evaluation,
+  def apply(sys: System)(info: HeaderInfo, generation: sys.Generation, evaluation: sys.Evaluation,
                       selection: sys.Selection, breeding: sys.Breeding): Settings { type S = sys.type } = {
     val _info       = info
     val _generation = generation
@@ -25,7 +25,7 @@ object Settings {
   }
 }
 trait Settings {
-  type S <: Sys
+  type S <: System
   val system: S
 
   def info      : HeaderInfo
