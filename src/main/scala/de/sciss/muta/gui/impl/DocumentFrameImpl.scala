@@ -60,19 +60,22 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   //    mSeed.setValue(util.Random.nextLong()) // System.currentTimeMillis())
   //  }
 
-  val avCfg       = AutoView.Config()
-  avCfg.scroll    = false
-  avCfg.small     = true
-  val pGen        = {
+  lazy val avCfg  = {
+    val res = AutoView.Config()
+    res.scroll    = false
+    res.small     = true
+    res
+  }
+  lazy val pGen        = {
     // import system.globalTypeTag
     // import system.generationTypeTag
     // AutoView(system.defaultGeneration, avCfg)
-    sys.generationView(avCfg)
+    sys.generationView(sys.defaultGeneration, avCfg)
   }
   //    form"""   Duration:|$ggDur |\u2669
   //          |       Seed:|$ggSeed|$ggRandSeed
   //          | Population:|$ggPop |"""
-  val pInfo     = AutoView(HeaderInfo(), avCfg)
+  lazy val pInfo = AutoView(HeaderInfo(), avCfg)
 
   //                                       index            fitness selected
   type ColMTop = TreeColumnModel.Tuple4[Node, Int, sys.Chromosome, Double, Boolean]
@@ -278,9 +281,10 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     res.build
   }
 
-  def mkSettingsButton[A](title: String)(view: AutoView.Config => AutoView[A])(setter: A => Unit): Button = {
+  def mkSettingsButton[A](title: String)(view: (A, AutoView.Config) => AutoView[A])
+                         (getter: => A)(setter: A => Unit): Button = {
     val but = Button("Settings") {
-      val av  = view(settingsViewConfig)
+      val av  = view(getter, settingsViewConfig)
       /* val ef = */ new SettingsFrame(app, av, title = title)
       av.cell.addListener {
         case value => setter(value)
@@ -315,7 +319,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       }
       ggEval.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
       ggEval.peer.putClientProperty("JButton.segmentPosition", "first")
-      val ggEvalSettings = mkSettingsButton[sys.Evaluation]("Evaluation")(sys.evaluationView)(evaluation = _)
+      val ggEvalSettings = mkSettingsButton[sys.Evaluation]("Evaluation")(sys.evaluationView)(evaluation)(evaluation = _)
 
       val ggSel = Button("Select") {
         stepSelect(tmTop.root.children)
@@ -324,7 +328,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       }
       ggSel.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
       ggSel.peer.putClientProperty("JButton.segmentPosition", "first")
-      val ggSelSettings = mkSettingsButton[sys.Selection]("Selection")(sys.selectionView)(selection = _)
+      val ggSelSettings = mkSettingsButton[sys.Selection]("Selection")(sys.selectionView)(selection)(selection = _)
 
       val ggBreed = Button("Breed") {
         val newNodes = stepBreed(tmTop.root.children)
@@ -332,7 +336,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       }
       ggBreed.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
       ggBreed.peer.putClientProperty("JButton.segmentPosition", "first")
-      val ggBreedSettings = mkSettingsButton[sys.Breeding]("Breeding")(sys.breedingView)(breeding = _)
+      val ggBreedSettings = mkSettingsButton[sys.Breeding]("Breeding")(sys.breedingView)(breeding)(breeding = _)
 
       val ggFeed = Button("\u21E7") {
         tmTop.updateNodes(tmBot.root.children)

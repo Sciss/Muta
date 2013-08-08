@@ -34,10 +34,10 @@ object TestSys extends System {
   // lazy val selfTypeTag        = ru     .typeTag [TestSys.type]
   // lazy val generationTypeTag  = ru     .typeTag [Generation]
 
-  def generationView(config: AutoView.Config) = AutoView[Generation](defaultGeneration, config)
-  def evaluationView(config: AutoView.Config) = AutoView[Evaluation](defaultEvaluation, config)
-  def selectionView (config: AutoView.Config) = AutoView[Selection ](defaultSelection , config)
-  def breedingView  (config: AutoView.Config) = AutoView[Breeding  ](defaultBreeding  , config)
+  def generationView(init: Generation, config: AutoView.Config) = AutoView[Generation](init, config)
+  def evaluationView(init: Evaluation, config: AutoView.Config) = AutoView[Evaluation](init, config)
+  def selectionView (init: Selection , config: AutoView.Config) = AutoView[Selection ](init, config)
+  def breedingView  (init: Breeding  , config: AutoView.Config) = AutoView[Breeding  ](init, config)
 
   override def chromosomeView(c: Chromosome, default: swing.Label, selected: Boolean,
                               focused: Boolean): swing.Component = {

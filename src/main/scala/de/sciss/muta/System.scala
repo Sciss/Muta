@@ -44,13 +44,13 @@ trait System {
   // ---- these should disappear; they are needed because of limitations of AutoView's type resolution ----
 
   /** Creates a GUI view for editing the generation settings. */
-  def generationView(config: AutoView.Config): AutoView[Generation]
+  def generationView(init: Generation, config: AutoView.Config): AutoView[Generation]
   /** Creates a GUI view for editing the evaluation settings. */
-  def evaluationView(config: AutoView.Config): AutoView[Evaluation]
+  def evaluationView(init: Evaluation, config: AutoView.Config): AutoView[Evaluation]
   /** Creates a GUI view for editing the selection settings. */
-  def selectionView (config: AutoView.Config): AutoView[Selection ]
+  def selectionView (init: Selection , config: AutoView.Config): AutoView[Selection ]
   /** Creates a GUI view for editing the breeding settings. */
-  def breedingView  (config: AutoView.Config): AutoView[Breeding  ]
+  def breedingView  (init: Breeding  , config: AutoView.Config): AutoView[Breeding  ]
 
   /** Provides a view component for the chromosomes in the genome table.
     * This method is guaranteed single threaded and called on the event dispatch thread,
