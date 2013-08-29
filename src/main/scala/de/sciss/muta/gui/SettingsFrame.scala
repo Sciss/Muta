@@ -7,10 +7,10 @@ import de.sciss.desktop.impl.WindowImpl
 import scala.swing.ScrollPane
 
 class SettingsFrame[A](app: GeneticApp[_], view: AutoView[A], title: String) { me =>
-  final def value       : A  = view.cell()
-  final def value_=(eval: A) { view.cell() = eval }
+  final def value       : A        = view.cell()
+  final def value_=(eval: A): Unit = view.cell() = eval
 
-  new WindowImpl {
+  val window: Window = new WindowImpl {
     def handler     = app.windowHandler
     def style       = Window.Regular
     title           = s"${me.title} Settings"

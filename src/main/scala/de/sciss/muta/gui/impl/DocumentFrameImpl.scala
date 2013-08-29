@@ -34,15 +34,13 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   var evaluation: sys.Evaluation  = sys.defaultEvaluation  // EvalWindowed()
   var selection : sys.Selection   = sys.defaultSelection   // Roulette    ()
   var breeding  : sys.Breeding    = sys.defaultBreeding    // Breeding    ()
-  // var generation: Generation  = Generation  ()
-  def generation: sys.Generation = pGen .cell()
-  def generation_=(value: sys.Generation) { pGen.cell() = value }
-  def info      : HeaderInfo  = pInfo.cell()
-  def info_=(value: HeaderInfo) { pInfo.cell() = value }
-  def iterations: Int         = info.iterations
-  def iterations_=(value: Int) {
-    pInfo.cell() = info.copy(iterations = value)
-  }
+  var generation: sys.Generation  = sys.defaultGeneration
+  // def generation        : sys.Generation        = pGen .cell()
+  // def generation_=(value: sys.Generation): Unit = pGen.cell() = value
+  def info        : HeaderInfo        = pInfo.cell()
+  def info_=(value: HeaderInfo): Unit = pInfo.cell() = value
+  def iterations        : Int        = info.iterations
+  def iterations_=(value: Int): Unit = pInfo.cell() = info.copy(iterations = value)
 
   //  val mDur        = new SpinnerNumberModel(16, 1, 128, 1)
   //  val ggDur       = new Spinner(mDur)
@@ -83,25 +81,25 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   val seqCol    = new TreeColumnModel.Column[Node, Int]("Index") {
     def apply     (node: Node): Int = node.index
-    def update    (node: Node, value: Int) {}
+    def update    (node: Node, value: Int) = ()
     def isEditable(node: Node) = false
   }
 
   val chromoCol = new TreeColumnModel.Column[Node, sys.Chromosome]("Chromosome")(sys.chromosomeClassTag) {
     def apply     (node: Node): sys.Chromosome = node.chromosome
-    def update    (node: Node, value: sys.Chromosome) {}
+    def update    (node: Node, value: sys.Chromosome) = ()
     def isEditable(node: Node) = false
   }
 
   val fitCol    = new TreeColumnModel.Column[Node, Double]("Fitness") {
     def apply     (node: Node): Double = node.fitness
-    def update    (node: Node, value: Double) {}
+    def update    (node: Node, value: Double) = ()
     def isEditable(node: Node) = false  // could be...
   }
 
   val selCol    = new TreeColumnModel.Column[Node, Boolean]("Selected") {
     def apply     (node: Node): Boolean = node.selected
-    def update    (node: Node, value: Boolean) {}
+    def update    (node: Node, value: Boolean) = ()
     def isEditable(node: Node) = false  // could be...
   }
 
@@ -113,7 +111,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     def getParent(node: Node) = None
   }
 
-  def adjustColumns(tt: TreeTable[_, _]) {
+  def adjustColumns(tt: TreeTable[_, _]): Unit = {
     val tabcm = tt.peer.getColumnModel
     val sz    = tabcm.getColumnCount
     tabcm.getColumn(0).setPreferredWidth( 48)
@@ -135,7 +133,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
     def isLeaf(node: Node): Boolean = getChildCount(node) == 0
 
-    def valueForPathChanged(path: TreeTable.Path[Node], newValue: Node) {}
+    def valueForPathChanged(path: TreeTable.Path[Node], newValue: Node) = ()
 
     def getIndexOfChild(parent: Node, child: Node): Int = parent.children.indexOf(child)
 
@@ -220,7 +218,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   val ggScrollBot   = new ScrollPane(breedingTable)
 
   val pTopSettings = new BoxPanel(Orientation.Vertical) {
-    contents += new FlowPanel(pGen.component, pInfo.component)
+    contents += new FlowPanel(pInfo.component)  // XXX TODO: needs FlowPanel for correct layout
     contents += VStrut(4)
     // contents += ggGen
   }
@@ -281,13 +279,26 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     res.build
   }
 
+  private var windowMap = Map.empty[String, Window]
+
   def mkSettingsButton[A](title: String)(view: (A, AutoView.Config) => AutoView[A])
                          (getter: => A)(setter: A => Unit): Button = {
     val but = Button("Settings") {
-      val av  = view(getter, settingsViewConfig)
-      /* val ef = */ new SettingsFrame(app, av, title = title)
-      av.cell.addListener {
-        case value => setter(value)
+      windowMap.get(title) match {
+        case Some(w) => w.front()
+        case _ =>
+          val av  = view(getter, settingsViewConfig)
+          val sf  = new SettingsFrame(app, av, title = title)
+          val w   = sf.window
+          av.cell.addListener {
+            case value => setter(value)
+          }
+          windowMap += title -> w
+          w.reactions += {
+            case Window.Closing(_) =>
+              // println(s"Closing $title Settings")
+              windowMap -= title
+          }
       }
     }
     but.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
@@ -310,7 +321,8 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
         iterations = 0
       }
       ggGen.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
-      ggGen.peer.putClientProperty("JButton.segmentPosition", "only")
+      ggGen.peer.putClientProperty("JButton.segmentPosition", "first")
+      val ggGenSettings = mkSettingsButton[sys.Generation]("Generation")(sys.generationView)(generation)(generation = _)
 
       val ggEval = Button("Evaluate") {
         stepEval(tmTop.root.children)
@@ -397,11 +409,12 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
         maximumSize   = preferredSize
       }
 
-      contents ++= Seq(ggGen, HStrut(32), ggEval , ggEvalSettings ,
-                              HStrut( 8), ggSel  , ggSelSettings  ,
-                              HStrut( 8), ggBreed, ggBreedSettings,
-                              HStrut( 8), ggFeed,
-                              HStrut( 8), ggNumIter, ggIter)
+      contents ++= Seq(            ggGen  , ggGenSettings  ,
+                       HStrut( 8), ggEval , ggEvalSettings ,
+                       HStrut( 8), ggSel  , ggSelSettings  ,
+                       HStrut( 8), ggBreed, ggBreedSettings,
+                       HStrut( 8), ggFeed,
+                       HStrut( 8), ggNumIter, ggIter)
     }
   }
 
