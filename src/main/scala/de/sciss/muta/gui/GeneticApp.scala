@@ -4,6 +4,7 @@ package gui
 import de.sciss.desktop.impl.SwingApplicationImpl
 import de.sciss.desktop.{KeyStrokes, Menu}
 import java.awt.event.KeyEvent
+import javax.swing.UIManager
 
 /** The stub to create a genetic algorithm swing application. Usually you will have an object
   * extending this class, which is then the main swing entry point.
@@ -13,10 +14,19 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
 
   type Document = Unit // gui.Document
 
+  protected def useNimbus = false
+
   // protected def newDocument(): Document
 
   /** Override this if you wish to be informed about document frames opening. */
   protected def configureDocumentFrame(frame: DocumentFrame[S]) = ()
+
+  override protected def init() = {
+    val nimbusOption = if (!useNimbus) None else UIManager.getInstalledLookAndFeels.collectFirst {
+      case info if info.getName == "Nimbus" => info.getClassName
+    }
+    nimbusOption.foreach(UIManager.setLookAndFeel)
+  }
 
   /** Override this to enforce a specific row height in the genome tables. The default value of `-1`
     * indicates that there is no preferred row height.

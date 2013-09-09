@@ -27,7 +27,7 @@ libraryDependencies ++= Seq(
   "de.sciss" %% "treetable-scala" % "1.3.+",    // Treetable widget
   "de.sciss" %% "guiflitz"        % "0.0.3+",   // Automatic configuration GUIs
   "de.sciss" %% "processor"       % "0.2.+",    // Asynchronous iteration
-  "de.sciss" %% "rating-scala"    % "0.1.+"     // Rating widget
+  "de.sciss" %% "rating-scala"    % "0.1.1+"    // Rating widget
 )
 
 retrieveManaged := true

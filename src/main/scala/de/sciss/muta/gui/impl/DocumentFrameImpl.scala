@@ -5,7 +5,7 @@ import scala.swing.{Graphics2D, CheckBox, Label, Action, SplitPane, FlowPanel, O
 import Swing._
 import de.sciss.desktop.impl.WindowImpl
 import de.sciss.desktop.{FileDialog, Window}
-import javax.swing.{JCheckBox, JTextField, SpinnerNumberModel}
+import javax.swing.{SwingConstants, JCheckBox, JTextField, SpinnerNumberModel}
 import de.sciss.treetable.{j, AbstractTreeModel, TreeColumnModel, TreeTable, TreeTableCellRenderer}
 import java.awt.EventQueue
 import collection.immutable.{IndexedSeq => Vec}
@@ -27,6 +27,7 @@ import javax.swing.event.CellEditorListener
 import java.util.EventObject
 import java.awt.event.ActionEvent
 import javax.swing.border.Border
+import de.sciss.treetable.j.event.{TreeTableMouseEvent, TreeTableMouseListener}
 
 final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) extends DocumentFrame[S] { outer =>
   type S1 = S
@@ -104,7 +105,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   val fitCol    = new TreeColumnModel.Column[Node, Double]("Fitness") {
     def apply     (node: Node): Double = node.fitness
     def update    (node: Node, value: Double): Unit = node.fitness = value
-    def isEditable(node: Node) = sys.manualEvaluation
+    def isEditable(node: Node) = false // sys.manualEvaluation
   }
 
   val selCol    = new TreeColumnModel.Column[Node, Boolean]("Selected") {
@@ -143,7 +144,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     tabcm.getColumn(0).setMaxWidth      ( 48)
     tabcm.getColumn(1).setPreferredWidth(768)
     if (sz >= 4) {
-      val fitWidth = rating.fold(72)(_.preferredSize.width)
+      val fitWidth = rating.fold(72)(_.preferredSize.width + 48)  // account for table column sort-icon width!
       tabcm.getColumn(2).setPreferredWidth(fitWidth)
       tabcm.getColumn(2).setMaxWidth      (128)
       tabcm.getColumn(3).setPreferredWidth( 56) // XXX TODO: should be rendered as checkbox not string
@@ -210,9 +211,11 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       super.getTreeTableCellRendererComponent(treeTable, value, selected, hasFocus, row, column)
       val c1 = treeTable.convertColumnIndexToModel(column)
       (c1: @switch) match {
-        // case 0 => // index
-        //   wrap.icon = EmptyIcon
-        //   this
+        case 0 => // index
+           // wrap.icon = EmptyIcon
+          setHorizontalAlignment(SwingConstants.RIGHT)
+          this
+
         case 1 => // chromosome
           val swing = sys.chromosomeView(value.asInstanceOf[sys.Chromosome],
             default = wrap, selected = selected, focused = hasFocus)
@@ -235,6 +238,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
           check.peer
 
         case _ =>
+          setHorizontalAlignment(SwingConstants.LEFT)
           this
       }
     }
@@ -269,48 +273,60 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     tt.peer.setDefaultRenderer(classOf[Boolean]   , tr) // TreeTableCellRenderer.Default.peer
 
     rating.foreach { r =>
-      tt.peer.setDefaultEditor(classOf[Double], new DefaultTreeTableCellEditor(new JCheckBox()) {
-        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
-                                                     row: Int, column: Int): java.awt.Component = {
-          // println("Aqui")
-          val res       = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
-          val renderer  = treeTable.getCellRenderer(row, column)
-          renderer.getTreeTableCellRendererComponent(treeTable, value, selected, true, row, column)
+      tt.peer.addTreeTableMouseListener(new TreeTableMouseListener {
+        def mouseClicked(e: TreeTableMouseEvent) = ()
 
-          editorComponent.setOpaque(true)
-          editorComponent.setBackground(r.background)
-          editorComponent.setBorder(r.border)
-
-          res
+        def mousePressed(e: TreeTableMouseEvent): Unit = {
+          println(s"pressed $e")
         }
 
-        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
-                                                     row: Int, column: Int, expanded: Boolean,
-                                                     leaf: Boolean): java.awt.Component = {
-          // val res = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column, expanded, leaf)
-          // res
-          getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
+        def mouseReleased(e: TreeTableMouseEvent): Unit = {
+          println(s"released $e")
         }
-
-        editorComponent = r.peer
-        delegate = new EditorDelegate() {
-          override def setValue(value: Any): Unit = {
-            r.value = value match {
-              case d: Double => (d * r.maximum + 0.5).toInt
-              case _ => 0
-            }
-          }
-
-          override def getCellEditorValue = (r.value.toDouble / r.maximum).asInstanceOf[AnyRef]
-        }
-        r.reactions += {
-          case ValueChanged(_) => delegate.actionPerformed(new ActionEvent(r.peer, ActionEvent.ACTION_PERFORMED, null))
-        }
-        r.peer.setRequestFocusEnabled(false)
       })
-    }
 
-    adjustColumns(tt)
+      //      tt.peer.setDefaultEditor(classOf[Double], new DefaultTreeTableCellEditor(new JCheckBox()) {
+      //        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
+      //                                                     row: Int, column: Int): java.awt.Component = {
+      //          // println("Aqui")
+      //          val res       = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
+      //          val renderer  = treeTable.getCellRenderer(row, column)
+      //          renderer.getTreeTableCellRendererComponent(treeTable, value, selected, true, row, column)
+      //
+      //          editorComponent.setOpaque(true)
+      //          editorComponent.setBackground(r.background)
+      //          editorComponent.setBorder(r.border)
+      //
+      //          res
+      //        }
+      //
+      //        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
+      //                                                     row: Int, column: Int, expanded: Boolean,
+      //                                                     leaf: Boolean): java.awt.Component = {
+      //          // val res = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column, expanded, leaf)
+      //          // res
+      //          getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
+      //        }
+      //
+      //        editorComponent = r.peer
+      //        delegate = new EditorDelegate() {
+      //          override def setValue(value: Any): Unit = {
+      //            r.value = value match {
+      //              case d: Double => (d * r.maximum + 0.5).toInt
+      //              case _ => 0
+      //            }
+      //          }
+      //
+      //          override def getCellEditorValue = (r.value.toDouble / r.maximum).asInstanceOf[AnyRef]
+      //        }
+      //        r.reactions += {
+      //          case ValueChanged(_) => delegate.actionPerformed(new ActionEvent(r.peer, ActionEvent.ACTION_PERFORMED, null))
+      //        }
+      //        r.peer.setRequestFocusEnabled(false)
+      //      })
+      }
+
+      adjustColumns(tt)
     tt
   }
 
