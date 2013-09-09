@@ -11,7 +11,7 @@ import java.awt.EventQueue
 import collection.immutable.{IndexedSeq => Vec}
 import de.sciss.swingplus.Spinner
 import de.sciss.treetable.j.{DefaultTreeTableCellEditor, TreeTableCellEditor, DefaultTreeTableSorter}
-import scala.swing.event.{ValueChanged, ButtonClicked}
+import scala.swing.event.{KeyTyped, ValueChanged, ButtonClicked}
 import de.sciss.file._
 import de.sciss.processor.impl.ProcessorImpl
 import de.sciss.processor.Processor
@@ -105,7 +105,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   val fitCol    = new TreeColumnModel.Column[Node, Double]("Fitness") {
     def apply     (node: Node): Double = node.fitness
     def update    (node: Node, value: Double): Unit = node.fitness = value
-    def isEditable(node: Node) = false // sys.manualEvaluation
+    def isEditable(node: Node) = sys.manualEvaluation
   }
 
   val selCol    = new TreeColumnModel.Column[Node, Boolean]("Selected") {
@@ -180,7 +180,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       // fireRootChanged()
     }
 
-    def refreshNodes(): Unit = fireNodesChanged(root.children: _*)
+    def refreshNodes(nodes: Vec[Node] = root.children): Unit = fireNodesChanged(nodes: _*)
   }
 
   object tmTop extends TreeModel {
@@ -210,11 +210,12 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
                                                    hasFocus: Boolean, row: Int, column: Int): java.awt.Component = {
       super.getTreeTableCellRendererComponent(treeTable, value, selected, hasFocus, row, column)
       val c1 = treeTable.convertColumnIndexToModel(column)
+      setHorizontalAlignment(if (c1 == 0) SwingConstants.RIGHT else SwingConstants.LEFT)
       (c1: @switch) match {
-        case 0 => // index
-           // wrap.icon = EmptyIcon
-          setHorizontalAlignment(SwingConstants.RIGHT)
-          this
+        //        case 0 => // index
+        //           // wrap.icon = EmptyIcon
+        //          setHorizontalAlignment(SwingConstants.RIGHT)
+        //          this
 
         case 1 => // chromosome
           val swing = sys.chromosomeView(value.asInstanceOf[sys.Chromosome],
@@ -238,7 +239,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
           check.peer
 
         case _ =>
-          setHorizontalAlignment(SwingConstants.LEFT)
+          // setHorizontalAlignment(SwingConstants.LEFT)
           this
       }
     }
@@ -248,6 +249,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     val tt                  = new TreeTable[Node, Col](tm, tcm)
     tt.rootVisible          = false
     tt.autoCreateRowSorter  = true
+    tt.peer.setNodeSortingEnabled(false)
     val dtts = tt.peer.getRowSorter.asInstanceOf[DefaultTreeTableSorter[_, _, _]]
     dtts.setSortsOnUpdates(true)
     dtts.setComparator(0, Ordering.Int)
@@ -273,60 +275,73 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     tt.peer.setDefaultRenderer(classOf[Boolean]   , tr) // TreeTableCellRenderer.Default.peer
 
     rating.foreach { r =>
-      tt.peer.addTreeTableMouseListener(new TreeTableMouseListener {
-        def mouseClicked(e: TreeTableMouseEvent) = ()
+      //      tt.peer.addTreeTableMouseListener(new TreeTableMouseListener {
+      //        def mouseClicked(e: TreeTableMouseEvent) = ()
+      //
+      //        def mousePressed(e: TreeTableMouseEvent): Unit = {
+      //          println(s"pressed $e")
+      //        }
+      //
+      //        def mouseReleased(e: TreeTableMouseEvent): Unit = {
+      //          println(s"released $e")
+      //        }
+      //      })
 
-        def mousePressed(e: TreeTableMouseEvent): Unit = {
-          println(s"pressed $e")
+      tt.peer.setDefaultEditor(classOf[Double], new DefaultTreeTableCellEditor(new JCheckBox()) {
+        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
+                                                     row: Int, column: Int): java.awt.Component = {
+          // println("Aqui")
+          val res       = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
+          val renderer  = treeTable.getCellRenderer(row, column)
+          renderer.getTreeTableCellRendererComponent(treeTable, value, selected, true, row, column)
+
+          editorComponent.setOpaque(true)
+          editorComponent.setBackground(r.background)
+          editorComponent.setBorder(r.border)
+
+          res
         }
 
-        def mouseReleased(e: TreeTableMouseEvent): Unit = {
-          println(s"released $e")
+        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
+                                                     row: Int, column: Int, expanded: Boolean,
+                                                     leaf: Boolean): java.awt.Component = {
+          // val res = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column, expanded, leaf)
+          // res
+          getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
         }
+
+        editorComponent = r.peer
+        delegate = new EditorDelegate() {
+          override def setValue(value: Any): Unit = {
+            r.value = value match {
+              case d: Double => (d * r.maximum + 0.5).toInt
+              case _ => 0
+            }
+          }
+
+          override def getCellEditorValue = (r.value.toDouble / r.maximum).asInstanceOf[AnyRef]
+        }
+        r.reactions += {
+          case ValueChanged(_) => delegate.actionPerformed(new ActionEvent(r.peer, ActionEvent.ACTION_PERFORMED, null))
+        }
+        r.peer.setRequestFocusEnabled(false)
       })
 
-      //      tt.peer.setDefaultEditor(classOf[Double], new DefaultTreeTableCellEditor(new JCheckBox()) {
-      //        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
-      //                                                     row: Int, column: Int): java.awt.Component = {
-      //          // println("Aqui")
-      //          val res       = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
-      //          val renderer  = treeTable.getCellRenderer(row, column)
-      //          renderer.getTreeTableCellRendererComponent(treeTable, value, selected, true, row, column)
-      //
-      //          editorComponent.setOpaque(true)
-      //          editorComponent.setBackground(r.background)
-      //          editorComponent.setBorder(r.border)
-      //
-      //          res
-      //        }
-      //
-      //        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
-      //                                                     row: Int, column: Int, expanded: Boolean,
-      //                                                     leaf: Boolean): java.awt.Component = {
-      //          // val res = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column, expanded, leaf)
-      //          // res
-      //          getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
-      //        }
-      //
-      //        editorComponent = r.peer
-      //        delegate = new EditorDelegate() {
-      //          override def setValue(value: Any): Unit = {
-      //            r.value = value match {
-      //              case d: Double => (d * r.maximum + 0.5).toInt
-      //              case _ => 0
-      //            }
-      //          }
-      //
-      //          override def getCellEditorValue = (r.value.toDouble / r.maximum).asInstanceOf[AnyRef]
-      //        }
-      //        r.reactions += {
-      //          case ValueChanged(_) => delegate.actionPerformed(new ActionEvent(r.peer, ActionEvent.ACTION_PERFORMED, null))
-      //        }
-      //        r.peer.setRequestFocusEnabled(false)
-      //      })
+      tt.listenTo(tt.keys)
+      tt.reactions += {
+        case KeyTyped(_, ch, 0, _) if ch >= '0' && ch <= '9' =>
+          val fit = math.min(r.maximum, ch - '0').toDouble / r.maximum
+          // println(s"FIT $fit")
+          val ns = selectedNodes
+          ns.foreach { n =>
+            n.fitness = fit
+          }
+          tm.refreshNodes(ns)
+          mainTable.repaint() // XXX TODO should not be necessary
       }
+    }
 
-      adjustColumns(tt)
+    adjustColumns(tt)
     tt
   }
 
