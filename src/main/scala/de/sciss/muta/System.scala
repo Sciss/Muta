@@ -2,7 +2,6 @@ package de.sciss
 package muta
 
 import scala.reflect.ClassTag
-import reflect.runtime.{universe => ru}
 import de.sciss.guiflitz.AutoView
 
 trait System {
@@ -34,6 +33,11 @@ trait System {
   def defaultEvaluation: Evaluation
   def defaultSelection : Selection
   def defaultBreeding  : Breeding
+
+  /** If `true`, requires manual instead of function based evaluation. */
+  def manualEvaluation      = false
+  /** When using manual evaluation, the number of steps for choosing fitness. */
+  def manualEvaluationSteps = 6
 
   implicit def chromosomeClassTag: ClassTag[Chromosome]
   // implicit def globalTypeTag: ru.TypeTag[S#Global]

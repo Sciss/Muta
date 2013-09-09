@@ -1,17 +1,17 @@
 package de.sciss.muta.gui
 package impl
 
-import scala.swing.{Label, Action, SplitPane, FlowPanel, Orientation, Swing, BoxPanel, BorderPanel, ScrollPane, Button}
+import scala.swing.{Graphics2D, CheckBox, Label, Action, SplitPane, FlowPanel, Orientation, Swing, BoxPanel, BorderPanel, ScrollPane, Button}
 import Swing._
 import de.sciss.desktop.impl.WindowImpl
 import de.sciss.desktop.{FileDialog, Window}
-import javax.swing.SpinnerNumberModel
-import de.sciss.treetable.{AbstractTreeModel, TreeColumnModel, TreeTable, TreeTableCellRenderer, j}
+import javax.swing.{JCheckBox, JTextField, SpinnerNumberModel}
+import de.sciss.treetable.{j, AbstractTreeModel, TreeColumnModel, TreeTable, TreeTableCellRenderer}
 import java.awt.EventQueue
 import collection.immutable.{IndexedSeq => Vec}
 import de.sciss.swingplus.Spinner
-import de.sciss.treetable.j.DefaultTreeTableSorter
-import scala.swing.event.ButtonClicked
+import de.sciss.treetable.j.{DefaultTreeTableCellEditor, TreeTableCellEditor, DefaultTreeTableSorter}
+import scala.swing.event.{ValueChanged, ButtonClicked}
 import de.sciss.file._
 import de.sciss.processor.impl.ProcessorImpl
 import de.sciss.processor.Processor
@@ -19,6 +19,14 @@ import scala.concurrent.ExecutionContext
 import de.sciss.guiflitz.AutoView
 import de.sciss.muta.{Settings, HeaderInfo, System}
 import de.sciss.muta.gui.{ProgressIcon, SettingsFrame, GeneticApp}
+import scala.annotation.switch
+import de.sciss.rating.Rating
+import de.sciss.rating.j.{DefaultRatingModel, RatingModel}
+import javax.swing.plaf.metal.MetalCheckBoxUI
+import javax.swing.event.CellEditorListener
+import java.util.EventObject
+import java.awt.event.ActionEvent
+import javax.swing.border.Border
 
 final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) extends DocumentFrame[S] { outer =>
   type S1 = S
@@ -27,7 +35,9 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   import outer.{system => sys, application => app}
 
-  final class Node(val index: Int, val chromosome: sys.Chromosome, var fitness: Double = Double.NaN,
+  private def defaultFitness = if (sys.manualEvaluation) 0.0 else Double.NaN
+
+  final class Node(val index: Int, val chromosome: sys.Chromosome, var fitness: Double = defaultFitness,
                    var selected: Boolean = false, val children: Vec[Node] = Vec.empty)
 
   var random      = sys.rng(0L)
@@ -93,8 +103,8 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   val fitCol    = new TreeColumnModel.Column[Node, Double]("Fitness") {
     def apply     (node: Node): Double = node.fitness
-    def update    (node: Node, value: Double) = ()
-    def isEditable(node: Node) = false  // could be...
+    def update    (node: Node, value: Double): Unit = node.fitness = value
+    def isEditable(node: Node) = sys.manualEvaluation
   }
 
   val selCol    = new TreeColumnModel.Column[Node, Boolean]("Selected") {
@@ -111,6 +121,21 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     def getParent(node: Node) = None
   }
 
+  val rating: Option[Rating] = if (sys.manualEvaluation) {
+    val rm  = new DefaultRatingModel(sys.manualEvaluationSteps - 1)
+    val r   = new Rating(rm)
+    r.focusable = false
+    //    {
+    //      // WTF?
+    //      override protected def paintComponent(g: Graphics2D): Unit = {
+    //        g.translate(-16, 0)
+    //        super.paintComponent(g)
+    //        g.translate( 16, 0)
+    //      }
+    //    }
+    Some(r)
+  } else None
+
   def adjustColumns(tt: TreeTable[_, _]): Unit = {
     val tabcm = tt.peer.getColumnModel
     val sz    = tabcm.getColumnCount
@@ -118,7 +143,8 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     tabcm.getColumn(0).setMaxWidth      ( 48)
     tabcm.getColumn(1).setPreferredWidth(768)
     if (sz >= 4) {
-      tabcm.getColumn(2).setPreferredWidth( 72)
+      val fitWidth = rating.fold(72)(_.preferredSize.width)
+      tabcm.getColumn(2).setPreferredWidth(fitWidth)
       tabcm.getColumn(2).setMaxWidth      (128)
       tabcm.getColumn(3).setPreferredWidth( 56) // XXX TODO: should be rendered as checkbox not string
       tabcm.getColumn(3).setMaxWidth      ( 56) // XXX TODO: should be rendered as checkbox not string
@@ -164,21 +190,52 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     protected def adjustColumns(): Unit = outer.adjustColumns(breedingTable)
   }
 
-  private class ChromosomeRenderer extends j.DefaultTreeTableCellRenderer {
+  private class TreeRenderer(rating: Option[Rating]) extends j.DefaultTreeTableCellRenderer {
     renderer =>
 
+    // override def setBorder(border: Border) = ()
+
     private lazy val wrap = new Label { override lazy val peer = renderer }
+    private val check = new CheckBox()
+    // check.peer.setUI(new MetalCheckBoxUI) // no funciona: don't want glossy stuff for pdf export etc.
+
+
+    override def getTreeTableCellRendererComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
+                                                   hasFocus: Boolean, row: Int, column: Int,
+                                                   expanded: Boolean, leaf: Boolean): java.awt.Component =
+      getTreeTableCellRendererComponent(treeTable, value, selected, hasFocus, row, column)
 
     override def getTreeTableCellRendererComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
                                                    hasFocus: Boolean, row: Int, column: Int): java.awt.Component = {
       super.getTreeTableCellRendererComponent(treeTable, value, selected, hasFocus, row, column)
-      // XXX TODO: `column` is physical column, not logical column.
-      if (column == 1) {
-        val swing = sys.chromosomeView(value.asInstanceOf[sys.Chromosome],
-          default = wrap, selected = selected, focused = hasFocus)
-        swing.peer
-      } else {
-        this
+      val c1 = treeTable.convertColumnIndexToModel(column)
+      (c1: @switch) match {
+        // case 0 => // index
+        //   wrap.icon = EmptyIcon
+        //   this
+        case 1 => // chromosome
+          val swing = sys.chromosomeView(value.asInstanceOf[sys.Chromosome],
+            default = wrap, selected = selected, focused = hasFocus)
+          swing.peer
+
+        case 2 => // fitness
+          rating.fold[java.awt.Component](this) { r =>
+            r.value = value match {
+              case fit: Double => (fit * r.maximum + 0.5).toInt
+              case _ => 0
+            }
+            // r.border      = EmptyBorder
+            r.background  = wrap.background
+            r.peer
+          }
+
+        case 3 => // selection
+          check.background  = wrap.background
+          check.selected    = value == true
+          check.peer
+
+        case _ =>
+          this
       }
     }
   }
@@ -203,10 +260,55 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
     // tt.expandPath(TreeTable.Path.empty)
     // XXX TODO: working around TreeTable issue #1
-    tt.peer.setDefaultRenderer(sys.chromosomeClassTag.runtimeClass, new ChromosomeRenderer)  // XXX TODO: to avoid conflict, should specify logical column index
-    tt.peer.setDefaultRenderer(classOf[Int]       , TreeTableCellRenderer.Default.peer)
-    tt.peer.setDefaultRenderer(classOf[Double]    , TreeTableCellRenderer.Default.peer)
-    tt.peer.setDefaultRenderer(classOf[Boolean]   , TreeTableCellRenderer.Default.peer)
+
+    val tr = new TreeRenderer(rating)
+    // tt.peer.setDefaultRenderer(null, tr)
+    tt.peer.setDefaultRenderer(sys.chromosomeClassTag.runtimeClass, tr)
+    tt.peer.setDefaultRenderer(classOf[Int]       , tr) // TreeTableCellRenderer.Default.peer
+    tt.peer.setDefaultRenderer(classOf[Double]    , tr) // TreeTableCellRenderer.Default.peer
+    tt.peer.setDefaultRenderer(classOf[Boolean]   , tr) // TreeTableCellRenderer.Default.peer
+
+    rating.foreach { r =>
+      tt.peer.setDefaultEditor(classOf[Double], new DefaultTreeTableCellEditor(new JCheckBox()) {
+        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
+                                                     row: Int, column: Int): java.awt.Component = {
+          // println("Aqui")
+          val res       = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
+          val renderer  = treeTable.getCellRenderer(row, column)
+          renderer.getTreeTableCellRendererComponent(treeTable, value, selected, true, row, column)
+
+          editorComponent.setOpaque(true)
+          editorComponent.setBackground(r.background)
+          editorComponent.setBorder(r.border)
+
+          res
+        }
+
+        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
+                                                     row: Int, column: Int, expanded: Boolean,
+                                                     leaf: Boolean): java.awt.Component = {
+          // val res = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column, expanded, leaf)
+          // res
+          getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
+        }
+
+        editorComponent = r.peer
+        delegate = new EditorDelegate() {
+          override def setValue(value: Any): Unit = {
+            r.value = value match {
+              case d: Double => (d * r.maximum + 0.5).toInt
+              case _ => 0
+            }
+          }
+
+          override def getCellEditorValue = (r.value.toDouble / r.maximum).asInstanceOf[AnyRef]
+        }
+        r.reactions += {
+          case ValueChanged(_) => delegate.actionPerformed(new ActionEvent(r.peer, ActionEvent.ACTION_PERFORMED, null))
+        }
+        r.peer.setRequestFocusEnabled(false)
+      })
+    }
 
     adjustColumns(tt)
     tt

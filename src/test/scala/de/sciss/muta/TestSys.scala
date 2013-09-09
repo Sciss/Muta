@@ -44,6 +44,8 @@ object TestSys extends System {
     default.text = c.map(if (_) '1' else '0')(breakOut): String
     default
   }
+
+  override def manualEvaluation = true
 }
 
 case class EvalMatchConst(target: Boolean = false) extends TestSys.Evaluation {

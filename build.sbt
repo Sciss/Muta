@@ -22,12 +22,12 @@ licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 // }
 
 libraryDependencies ++= Seq(
-  "de.sciss"                 %% "fileutil"           % "1.0.+",           // Easy file representation
-  "de.sciss"                 %% "desktop"            % "0.3.+",           // Application framework
-  "de.sciss"                 %% "treetable-scala"    % "1.3.+",           // Treetable widget
-  "de.sciss"                 %% "guiflitz"           % "0.0.3+",          // Automatic configuration GUIs
-  "de.sciss"                 %% "processor"          % "0.2.+",           // Asynchronous iteration
-  "de.sciss"                 %% "rating-scala"       % "0.1.+"            // Rating widget
+  "de.sciss" %% "fileutil"        % "1.0.+",    // Easy file representation
+  "de.sciss" %% "desktop"         % "0.3.+",    // Application framework
+  "de.sciss" %% "treetable-scala" % "1.3.+",    // Treetable widget
+  "de.sciss" %% "guiflitz"        % "0.0.3+",   // Automatic configuration GUIs
+  "de.sciss" %% "processor"       % "0.2.+",    // Asynchronous iteration
+  "de.sciss" %% "rating-scala"    % "0.1.+"     // Rating widget
 )
 
 retrieveManaged := true
