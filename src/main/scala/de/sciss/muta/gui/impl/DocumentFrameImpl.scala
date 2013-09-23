@@ -35,7 +35,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   import outer.{system => sys, application => app}
 
-  private def defaultFitness = if (sys.isInstanceOf[HumanEvaluationSystem]) 0.0 else Double.NaN
+  private def defaultFitness = if (sys.hasHumanEvaluation) 0.0 else Double.NaN
 
   final class Node(val index: Int, val chromosome: sys.Chromosome, var fitness: Double = defaultFitness,
                    var selected: Boolean = false, val children: Vec[Node] = Vec.empty)
@@ -104,7 +104,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   val fitCol    = new TreeColumnModel.Column[Node, Double]("Fitness") {
     def apply     (node: Node): Double = node.fitness
     def update    (node: Node, value: Double): Unit = node.fitness = value
-    def isEditable(node: Node) = sys.isInstanceOf[HumanEvaluationSystem]
+    def isEditable(node: Node) = sys.hasHumanEvaluation
   }
 
   val selCol    = new TreeColumnModel.Column[Node, Boolean]("Selected") {
@@ -121,15 +121,12 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     def getParent(node: Node) = None
   }
 
-  val rating: Option[Rating] = sys match {
-    case hs: HumanEvaluationSystem =>
-      val rm  = new DefaultRatingModel(hs.humanEvaluationSteps - 1)
+  val rating: Option[Rating] = if (sys.hasHumanEvaluation) {
+      val rm  = new DefaultRatingModel(sys.humanEvaluationSteps - 1)
       val r   = new Rating(rm)
       r.focusable = false
       Some(r)
-
-    case _ => None
-  }
+  } else None
 
   def adjustColumns(tt: TreeTable[_, _]): Unit = {
     val tabcm = tt.peer.getColumnModel
@@ -451,20 +448,18 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       ggGen.peer.putClientProperty("JButton.segmentPosition", "first")
       val ggGenSettings = mkSettingsButton[sys.Generation]("Generation")(sys.generationView)(generation)(generation = _)
 
-      val evalOpt = sys match {
-        case cs: ComputerEvaluationSystem =>
-          val ggEval = Button("Evaluate") {
-            stepEval(tmTop.root.children)
-            tmTop.refreshNodes()
-            mainTable.repaint() // XXX TODO should not be necessary
-          }
-          ggEval.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
-          ggEval.peer.putClientProperty("JButton.segmentPosition", "first")
-          val ggEvalSettings = mkSettingsButton[sys.Evaluation]("Evaluation")( (init, config) =>
-            cs.evaluationView(init.asInstanceOf[cs.Evaluation], config).asInstanceOf[AutoView[sys.Evaluation]]
-          )(evaluation)(evaluation = _)
-          Some((ggEval, ggEvalSettings))
-        case _ => None
+      val evalOpt = sys.evaluationViewOption.map { evalViewFun =>
+        val ggEval = Button("Evaluate") {
+          stepEval(tmTop.root.children)
+          tmTop.refreshNodes()
+          mainTable.repaint() // XXX TODO should not be necessary
+        }
+        ggEval.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
+        ggEval.peer.putClientProperty("JButton.segmentPosition", "first")
+        val ggEvalSettings = mkSettingsButton[sys.Evaluation]("Evaluation")( (init, config) =>
+          evalViewFun(init, config) )(evaluation)(evaluation = _)
+
+        (ggEval, ggEvalSettings)
       }
 
       val ggSel = Button("Select") {

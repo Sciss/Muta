@@ -4,7 +4,7 @@ package muta
 import scala.reflect.ClassTag
 import de.sciss.guiflitz.AutoView
 
-sealed trait System {
+trait System {
   /** The chromosome is one "sequence" to be generated and evaluated. Typically this will be a collection
     * type such as `Vector` */
   type Chromosome
@@ -18,6 +18,11 @@ sealed trait System {
   type Evaluation <: muta.Evaluation[Chromosome]
 
   def defaultEvaluation: Evaluation
+
+  /** When using manual evaluation, the number of steps for choosing fitness. Otherwise zero. */
+  def humanEvaluationSteps: Int = 0
+
+  final def hasHumanEvaluation: Boolean = humanEvaluationSteps > 0
 
   /** This type defines the global parameters of the genetic system. They can be used
     * for generating chromosomes (e.g., specifying a chromosome length) in the original
@@ -51,6 +56,9 @@ sealed trait System {
   /** Creates a GUI view for editing the breeding settings. */
   def breedingView  (init: Breeding  , config: AutoView.Config): AutoView[Breeding  ]
 
+  /** Creates a GUI view for editing the evaluation settings. */
+  def evaluationViewOption: Option[(Evaluation, AutoView.Config) => AutoView[Evaluation]]
+
   /** Provides a view component for the chromosomes in the genome table.
     * This method is guaranteed single threaded and called on the event dispatch thread,
     * thus a single swing components can be reused.
@@ -67,19 +75,4 @@ sealed trait System {
     default
 
   def chromosomeEditor = Option.empty[Chromosome => swing.Component]
-}
-
-trait ComputerEvaluationSystem extends System {
-  //  type Evaluation <: muta.Evaluation[Chromosome]
-  //
-  //  def defaultEvaluation: Evaluation
-
-  /** Creates a GUI view for editing the evaluation settings. */
-  def evaluationView(init: Evaluation, config: AutoView.Config): AutoView[Evaluation]
-}
-
-/** If `true`, requires manual instead of function based evaluation. */
-trait HumanEvaluationSystem extends System {
-  /** When using manual evaluation, the number of steps for choosing fitness. */
-  def humanEvaluationSteps: Int = 6
 }
