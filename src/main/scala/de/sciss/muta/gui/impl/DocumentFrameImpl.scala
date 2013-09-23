@@ -25,7 +25,7 @@ import scala.swing.event.ButtonClicked
 import scala.swing.event.KeyTyped
 import de.sciss.muta.HeaderInfo
 import collection.breakOut
-import play.api.libs.json.{JsValue, JsObject, JsArray, Writes, Json}
+import play.api.libs.json.{JsBoolean, JsNumber, JsValue, JsObject, JsArray, Writes, Json}
 
 final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) extends DocumentFrame[S] { outer =>
   type S1 = S
@@ -279,6 +279,10 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     // contents += ggGen
   }
 
+  def currentTable: Vec[Node] = tmTop.root.children
+
+  type Document = (Vec[Node], Settings { type S = sys.type })
+
   def settings: Settings { type S = sys.type } = Settings(sys)(info, generation, evaluation, selection, breeding)
   def settings_=(s: Settings { type S = sys.type }): Unit = {
     evaluation  = s.evaluation
@@ -388,7 +392,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
       val evalOpt = sys.evaluationViewOption.map { evalViewFun =>
         val ggEval = Button("Evaluate") {
-          stepEval(tmTop.root.children)
+          stepEval(currentTable)
           tmTop.refreshNodes()
           mainTable.repaint() // XXX TODO should not be necessary
         }
@@ -401,7 +405,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       }
 
       val ggSel = Button("Select") {
-        stepSelect(tmTop.root.children)
+        stepSelect(currentTable)
         tmTop.refreshNodes()
         mainTable.repaint() // XXX TODO should not be necessary
       }
@@ -410,7 +414,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       val ggSelSettings = mkSettingsButton[sys.Selection]("Selection")(sys.selectionView)(selection)(selection = _)
 
       val ggBreed = Button("Breed") {
-        val newNodes = stepBreed(tmTop.root.children)
+        val newNodes = stepBreed(currentTable)
         tmBot.updateNodes(newNodes)
       }
       ggBreed.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
@@ -439,7 +443,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
               case Some(p) => p.abort()
               case _ =>
                 val num = mNumIter.getNumber.intValue()
-                val in  = tmTop.root.children
+                val in  = currentTable
                 val p   = new Proc(in, num)
                 proc    = Some(p)
                 p.addListener {
@@ -503,7 +507,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     bottomComponent = splitBot
   }
 
-  private def settingsFieldsToJson(): Seq[(String, JsValue)] = Seq(
+  private def settingsFieldsToJson(): Vec[(String, JsValue)] = Vec(
     "info"        -> Json.format[HeaderInfo].writes(settings.info      ),
     "generation"  -> sys.generationFormat   .writes(settings.generation),
     "evaluation"  -> sys.evaluationFormat   .writes(settings.evaluation),
@@ -522,7 +526,16 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     }
 
     def save(f: File): Unit = {
-      println("Save: TODO")
+      implicit val settingsR = Writes[Document] { case (nodes, settings) =>
+        JsObject(settingsFieldsToJson() :+ ("genome" -> JsArray(nodes.map { n =>
+          JsObject(Seq(
+            "chromosome" -> sys.chromosomeFormat.writes(n.chromosome),
+            "fitness"    -> JsNumber(n.fitness),
+            "selected"    -> JsBoolean(n.selected)
+          ))
+        })))
+      }
+      SettingsIO.write(currentTable -> settings, f.replaceExt("json"))
       file = Some(f)
       updateTitle()
     }
@@ -578,9 +591,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   def open(): Unit = window.open()
 
-  def load(file: File): Unit = {
-    scala.sys.error("TODO: Load")
-  }
+  def load(file: File): Unit = ???
 
   def exportTableAsPDF(f: File, genome: sys.GenomeVal): Unit = {
     // XXX TODO
