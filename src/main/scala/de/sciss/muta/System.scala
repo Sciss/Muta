@@ -4,7 +4,7 @@ package muta
 import scala.reflect.ClassTag
 import de.sciss.guiflitz.AutoView
 
-trait System {
+sealed trait System {
   /** The chromosome is one "sequence" to be generated and evaluated. Typically this will be a collection
     * type such as `Vector` */
   type Chromosome
@@ -14,6 +14,10 @@ trait System {
   type GenomeVal  = Vec[(Chromosome, Double)]
   /** A selected genome is an evaluated genome with a selection flag for each chromosome. */
   type GenomeSel  = Vec[(Chromosome, Double, Boolean)]
+
+  type Evaluation <: muta.Evaluation[Chromosome]
+
+  def defaultEvaluation: Evaluation
 
   /** This type defines the global parameters of the genetic system. They can be used
     * for generating chromosomes (e.g., specifying a chromosome length) in the original
@@ -25,19 +29,12 @@ trait System {
   def rng(seed: Long = 0L): util.Random = new util.Random(seed)
 
   type Generation <: muta.Generation[Chromosome, Global]
-  type Evaluation <: muta.Evaluation[Chromosome]
   type Selection  <: muta.Selection [Chromosome]
   type Breeding   <: muta.Breeding  [Chromosome, Global]
 
   def defaultGeneration: Generation
-  def defaultEvaluation: Evaluation
   def defaultSelection : Selection
   def defaultBreeding  : Breeding
-
-  /** If `true`, requires manual instead of function based evaluation. */
-  def manualEvaluation      = false
-  /** When using manual evaluation, the number of steps for choosing fitness. */
-  def manualEvaluationSteps = 6
 
   implicit def chromosomeClassTag: ClassTag[Chromosome]
   // implicit def globalTypeTag: ru.TypeTag[S#Global]
@@ -49,8 +46,6 @@ trait System {
 
   /** Creates a GUI view for editing the generation settings. */
   def generationView(init: Generation, config: AutoView.Config): AutoView[Generation]
-  /** Creates a GUI view for editing the evaluation settings. */
-  def evaluationView(init: Evaluation, config: AutoView.Config): AutoView[Evaluation]
   /** Creates a GUI view for editing the selection settings. */
   def selectionView (init: Selection , config: AutoView.Config): AutoView[Selection ]
   /** Creates a GUI view for editing the breeding settings. */
@@ -70,4 +65,21 @@ trait System {
     */
   def chromosomeView(c: Chromosome, default: swing.Label, selected: Boolean, focused: Boolean): swing.Component =
     default
+
+  def chromosomeEditor = Option.empty[Chromosome => swing.Component]
+}
+
+trait ComputerEvaluationSystem extends System {
+  //  type Evaluation <: muta.Evaluation[Chromosome]
+  //
+  //  def defaultEvaluation: Evaluation
+
+  /** Creates a GUI view for editing the evaluation settings. */
+  def evaluationView(init: Evaluation, config: AutoView.Config): AutoView[Evaluation]
+}
+
+/** If `true`, requires manual instead of function based evaluation. */
+trait HumanEvaluationSystem extends System {
+  /** When using manual evaluation, the number of steps for choosing fitness. */
+  def humanEvaluationSteps: Int = 6
 }

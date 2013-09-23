@@ -1,33 +1,32 @@
 package de.sciss.muta.gui
 package impl
 
-import scala.swing.{Graphics2D, CheckBox, Label, Action, SplitPane, FlowPanel, Orientation, Swing, BoxPanel, BorderPanel, ScrollPane, Button}
+import scala.swing.{CheckBox, Label, Action, SplitPane, FlowPanel, Orientation, Swing, BoxPanel, BorderPanel, ScrollPane, Button}
 import Swing._
 import de.sciss.desktop.impl.WindowImpl
 import de.sciss.desktop.{FileDialog, Window}
-import javax.swing.{SwingConstants, JCheckBox, JTextField, SpinnerNumberModel}
-import de.sciss.treetable.{j, AbstractTreeModel, TreeColumnModel, TreeTable, TreeTableCellRenderer}
+import javax.swing.{SwingConstants, JCheckBox, SpinnerNumberModel}
+import de.sciss.treetable.{j, AbstractTreeModel, TreeColumnModel, TreeTable}
 import java.awt.EventQueue
 import collection.immutable.{IndexedSeq => Vec}
 import de.sciss.swingplus.Spinner
-import de.sciss.treetable.j.{DefaultTreeTableCellEditor, TreeTableCellEditor, DefaultTreeTableSorter}
+import de.sciss.treetable.j.{DefaultTreeTableCellEditor, DefaultTreeTableSorter}
 import scala.swing.event.{KeyTyped, ValueChanged, ButtonClicked}
 import de.sciss.file._
 import de.sciss.processor.impl.ProcessorImpl
 import de.sciss.processor.Processor
 import scala.concurrent.ExecutionContext
 import de.sciss.guiflitz.AutoView
-import de.sciss.muta.{Settings, HeaderInfo, System}
+import de.sciss.muta._
 import de.sciss.muta.gui.{ProgressIcon, SettingsFrame, GeneticApp}
 import scala.annotation.switch
 import de.sciss.rating.Rating
-import de.sciss.rating.j.{DefaultRatingModel, RatingModel}
-import javax.swing.plaf.metal.MetalCheckBoxUI
-import javax.swing.event.CellEditorListener
-import java.util.EventObject
+import de.sciss.rating.j.DefaultRatingModel
 import java.awt.event.ActionEvent
-import javax.swing.border.Border
-import de.sciss.treetable.j.event.{TreeTableMouseEvent, TreeTableMouseListener}
+import scala.Some
+import scala.swing.event.ButtonClicked
+import scala.swing.event.KeyTyped
+import de.sciss.muta.HeaderInfo
 
 final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) extends DocumentFrame[S] { outer =>
   type S1 = S
@@ -36,7 +35,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   import outer.{system => sys, application => app}
 
-  private def defaultFitness = if (sys.manualEvaluation) 0.0 else Double.NaN
+  private def defaultFitness = if (sys.isInstanceOf[HumanEvaluationSystem]) 0.0 else Double.NaN
 
   final class Node(val index: Int, val chromosome: sys.Chromosome, var fitness: Double = defaultFitness,
                    var selected: Boolean = false, val children: Vec[Node] = Vec.empty)
@@ -105,7 +104,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   val fitCol    = new TreeColumnModel.Column[Node, Double]("Fitness") {
     def apply     (node: Node): Double = node.fitness
     def update    (node: Node, value: Double): Unit = node.fitness = value
-    def isEditable(node: Node) = sys.manualEvaluation
+    def isEditable(node: Node) = sys.isInstanceOf[HumanEvaluationSystem]
   }
 
   val selCol    = new TreeColumnModel.Column[Node, Boolean]("Selected") {
@@ -122,20 +121,15 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     def getParent(node: Node) = None
   }
 
-  val rating: Option[Rating] = if (sys.manualEvaluation) {
-    val rm  = new DefaultRatingModel(sys.manualEvaluationSteps - 1)
-    val r   = new Rating(rm)
-    r.focusable = false
-    //    {
-    //      // WTF?
-    //      override protected def paintComponent(g: Graphics2D): Unit = {
-    //        g.translate(-16, 0)
-    //        super.paintComponent(g)
-    //        g.translate( 16, 0)
-    //      }
-    //    }
-    Some(r)
-  } else None
+  val rating: Option[Rating] = sys match {
+    case hs: HumanEvaluationSystem =>
+      val rm  = new DefaultRatingModel(hs.humanEvaluationSteps - 1)
+      val r   = new Rating(rm)
+      r.focusable = false
+      Some(r)
+
+    case _ => None
+  }
 
   def adjustColumns(tt: TreeTable[_, _]): Unit = {
     val tabcm = tt.peer.getColumnModel
@@ -457,14 +451,21 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       ggGen.peer.putClientProperty("JButton.segmentPosition", "first")
       val ggGenSettings = mkSettingsButton[sys.Generation]("Generation")(sys.generationView)(generation)(generation = _)
 
-      val ggEval = Button("Evaluate") {
-        stepEval(tmTop.root.children)
-        tmTop.refreshNodes()
-        mainTable.repaint() // XXX TODO should not be necessary
+      val evalOpt = sys match {
+        case cs: ComputerEvaluationSystem =>
+          val ggEval = Button("Evaluate") {
+            stepEval(tmTop.root.children)
+            tmTop.refreshNodes()
+            mainTable.repaint() // XXX TODO should not be necessary
+          }
+          ggEval.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
+          ggEval.peer.putClientProperty("JButton.segmentPosition", "first")
+          val ggEvalSettings = mkSettingsButton[sys.Evaluation]("Evaluation")( (init, config) =>
+            cs.evaluationView(init.asInstanceOf[cs.Evaluation], config).asInstanceOf[AutoView[sys.Evaluation]]
+          )(evaluation)(evaluation = _)
+          Some((ggEval, ggEvalSettings))
+        case _ => None
       }
-      ggEval.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
-      ggEval.peer.putClientProperty("JButton.segmentPosition", "first")
-      val ggEvalSettings = mkSettingsButton[sys.Evaluation]("Evaluation")(sys.evaluationView)(evaluation)(evaluation = _)
 
       val ggSel = Button("Select") {
         stepSelect(tmTop.root.children)
@@ -542,9 +543,9 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
         maximumSize   = preferredSize
       }
 
-      contents ++= Seq(            ggGen  , ggGenSettings  ,
-                       HStrut( 8), ggEval , ggEvalSettings ,
-                       HStrut( 8), ggSel  , ggSelSettings  ,
+      contents ++= Seq(            ggGen  , ggGenSettings)
+      evalOpt.foreach { case (ggEval, ggEvalSettings) => contents ++= Seq(HStrut( 8), ggEval , ggEvalSettings) }
+      contents ++= Seq(HStrut( 8), ggSel  , ggSelSettings  ,
                        HStrut( 8), ggBreed, ggBreedSettings,
                        HStrut( 8), ggFeed,
                        HStrut( 8), ggNumIter, ggIter)
