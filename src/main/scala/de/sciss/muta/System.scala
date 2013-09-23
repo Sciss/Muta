@@ -2,7 +2,7 @@ package de.sciss
 package muta
 
 import scala.reflect.ClassTag
-import de.sciss.guiflitz.AutoView
+import de.sciss.guiflitz.{Cell, AutoView}
 
 trait System {
   /** The chromosome is one "sequence" to be generated and evaluated. Typically this will be a collection
@@ -23,6 +23,8 @@ trait System {
   def humanEvaluationSteps: Int = 0
 
   final def hasHumanEvaluation: Boolean = humanEvaluationSteps > 0
+
+  def hasHumanSelection: Boolean = false
 
   /** This type defines the global parameters of the genetic system. They can be used
     * for generating chromosomes (e.g., specifying a chromosome length) in the original
@@ -74,5 +76,7 @@ trait System {
   def chromosomeView(c: Chromosome, default: swing.Label, selected: Boolean, focused: Boolean): swing.Component =
     default
 
-  def chromosomeEditor = Option.empty[Chromosome => swing.Component]
+  def chromosomeEditorOption: Option[(swing.Component, () => Chromosome, Chromosome => Unit)] = None
+
+  final def hasChromosomeEditor: Boolean = chromosomeEditorOption.isDefined
 }

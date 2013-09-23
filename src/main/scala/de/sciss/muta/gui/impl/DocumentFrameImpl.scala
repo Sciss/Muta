@@ -11,7 +11,7 @@ import java.awt.EventQueue
 import collection.immutable.{IndexedSeq => Vec}
 import de.sciss.swingplus.Spinner
 import de.sciss.treetable.j.{DefaultTreeTableCellEditor, DefaultTreeTableSorter}
-import scala.swing.event.{KeyTyped, ValueChanged, ButtonClicked}
+import scala.swing.event.ValueChanged
 import de.sciss.file._
 import de.sciss.processor.impl.ProcessorImpl
 import de.sciss.processor.Processor
@@ -37,7 +37,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   private def defaultFitness = if (sys.hasHumanEvaluation) 0.0 else Double.NaN
 
-  final class Node(val index: Int, val chromosome: sys.Chromosome, var fitness: Double = defaultFitness,
+  final class Node(val index: Int, var chromosome: sys.Chromosome, var fitness: Double = defaultFitness,
                    var selected: Boolean = false, val children: Vec[Node] = Vec.empty)
 
   var random      = sys.rng(0L)
@@ -51,22 +51,6 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   def info_=(value: HeaderInfo): Unit = pInfo.cell() = value
   def iterations        : Int        = info.iterations
   def iterations_=(value: Int): Unit = pInfo.cell() = info.copy(iterations = value)
-
-  //  val mDur        = new SpinnerNumberModel(16, 1, 128, 1)
-  //  val ggDur       = new Spinner(mDur)
-  //  val mSeed       = new SpinnerNumberModel(0L, 0L, Long.MaxValue, 1L)
-  //  val ggSeed      = new Spinner(mSeed) {
-  //    listenTo(this)
-  //    reactions += {
-  //      case ValueChanged(_) =>
-  //        random = Fitness.rng(mSeed.getNumber.longValue())
-  //    }
-  //  }
-  //  val mPop        = new SpinnerNumberModel(100, 1, 10000, 1)
-  //  val ggPop       = new Spinner(mPop)
-  //  val ggRandSeed  = Button("Rand") {
-  //    mSeed.setValue(util.Random.nextLong()) // System.currentTimeMillis())
-  //  }
 
   lazy val avCfg  = {
     val res = AutoView.Config()
@@ -97,8 +81,8 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   val chromoCol = new TreeColumnModel.Column[Node, sys.Chromosome]("Chromosome")(sys.chromosomeClassTag) {
     def apply     (node: Node): sys.Chromosome = node.chromosome
-    def update    (node: Node, value: sys.Chromosome) = ()
-    def isEditable(node: Node) = false
+    def update    (node: Node, value: sys.Chromosome): Unit = node.chromosome = value
+    def isEditable(node: Node) = sys.hasChromosomeEditor
   }
 
   val fitCol    = new TreeColumnModel.Column[Node, Double]("Fitness") {
@@ -109,8 +93,8 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   val selCol    = new TreeColumnModel.Column[Node, Boolean]("Selected") {
     def apply     (node: Node): Boolean = node.selected
-    def update    (node: Node, value: Boolean) = ()
-    def isEditable(node: Node) = false  // could be...
+    def update    (node: Node, value: Boolean): Unit = node.selected = value
+    def isEditable(node: Node) = sys.hasHumanSelection
   }
 
   val tcmTop = new ColMTop(seqCol, chromoCol, fitCol, selCol) {
@@ -249,15 +233,6 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       dtts.setComparator(3, Ordering.Boolean)
     }
 
-      // val dtts = new DefaultTreeTableSorter(tm.pee, tcm.peer)
-    //  // tt.peer.setRowSorter(dtts)
-    //  println(s"Sortable(0)? ${dtts.isSortable(0)}; Sortable(2)? ${dtts.isSortable(2)}")
-    //  dtts.setSortable(0, true)
-    //  dtts.setSortable(2, true)
-
-    // tt.expandPath(TreeTable.Path.empty)
-    // XXX TODO: working around TreeTable issue #1
-
     val tr = new TreeRenderer(rating)
     // tt.peer.setDefaultRenderer(null, tr)
     tt.peer.setDefaultRenderer(sys.chromosomeClassTag.runtimeClass, tr)
@@ -265,58 +240,16 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     tt.peer.setDefaultRenderer(classOf[Double]    , tr) // TreeTableCellRenderer.Default.peer
     tt.peer.setDefaultRenderer(classOf[Boolean]   , tr) // TreeTableCellRenderer.Default.peer
 
+    if (sys.hasHumanSelection)
+      tt.peer.setDefaultEditor(classOf[Boolean], new DefaultTreeTableCellEditor(new JCheckBox()))
+
+    sys.chromosomeEditorOption.foreach { case (editor, getter, setter) =>
+      tt.peer.setDefaultEditor(sys.chromosomeClassTag.runtimeClass,
+        new ChromosomeEditor[sys.Chromosome](editor)(getter())(setter))
+    }
+
     rating.foreach { r =>
-      //      tt.peer.addTreeTableMouseListener(new TreeTableMouseListener {
-      //        def mouseClicked(e: TreeTableMouseEvent) = ()
-      //
-      //        def mousePressed(e: TreeTableMouseEvent): Unit = {
-      //          println(s"pressed $e")
-      //        }
-      //
-      //        def mouseReleased(e: TreeTableMouseEvent): Unit = {
-      //          println(s"released $e")
-      //        }
-      //      })
-
-      tt.peer.setDefaultEditor(classOf[Double], new DefaultTreeTableCellEditor(new JCheckBox()) {
-        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
-                                                     row: Int, column: Int): java.awt.Component = {
-          // println("Aqui")
-          val res       = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
-          val renderer  = treeTable.getCellRenderer(row, column)
-          renderer.getTreeTableCellRendererComponent(treeTable, value, selected, true, row, column)
-
-          editorComponent.setOpaque(true)
-          editorComponent.setBackground(r.background)
-          editorComponent.setBorder(r.border)
-
-          res
-        }
-
-        override def getTreeTableCellEditorComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
-                                                     row: Int, column: Int, expanded: Boolean,
-                                                     leaf: Boolean): java.awt.Component = {
-          // val res = super.getTreeTableCellEditorComponent(treeTable, value, selected, row, column, expanded, leaf)
-          // res
-          getTreeTableCellEditorComponent(treeTable, value, selected, row, column)
-        }
-
-        editorComponent = r.peer
-        delegate = new EditorDelegate() {
-          override def setValue(value: Any): Unit = {
-            r.value = value match {
-              case d: Double => (d * r.maximum + 0.5).toInt
-              case _ => 0
-            }
-          }
-
-          override def getCellEditorValue = (r.value.toDouble / r.maximum).asInstanceOf[AnyRef]
-        }
-        r.reactions += {
-          case ValueChanged(_) => delegate.actionPerformed(new ActionEvent(r.peer, ActionEvent.ACTION_PERFORMED, null))
-        }
-        r.peer.setRequestFocusEnabled(false)
-      })
+      tt.peer.setDefaultEditor(classOf[Double], new RatingEditor(r))
 
       tt.listenTo(tt.keys)
       tt.reactions += {

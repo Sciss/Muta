@@ -1,9 +1,11 @@
 package de.sciss
 package muta
 
-import de.sciss.guiflitz.AutoView
+import de.sciss.guiflitz.{Cell, AutoView}
 import scala.util.Random
 import collection.breakOut
+import scala.swing.Component
+import javax.swing.{JTextField, DefaultCellEditor}
 
 object TestSys extends System {
   type Chromosome = Vec[Boolean]
@@ -35,17 +37,36 @@ object TestSys extends System {
   // lazy val generationTypeTag  = ru     .typeTag [Generation]
 
   def generationView(init: Generation, config: AutoView.Config) = AutoView[Generation](init, config)
+  def evaluationViewOption = Some(evaluationView)
   def evaluationView(init: Evaluation, config: AutoView.Config) = AutoView[Evaluation](init, config)
   def selectionView (init: Selection , config: AutoView.Config) = AutoView[Selection ](init, config)
   def breedingView  (init: Breeding  , config: AutoView.Config) = AutoView[Breeding  ](init, config)
 
   override def chromosomeView(c: Chromosome, default: swing.Label, selected: Boolean,
                               focused: Boolean): swing.Component = {
-    default.text = c.map(if (_) '1' else '0')(breakOut): String
+    if (c != null) default.text = chromoToText(c)
     default
   }
 
-  override def manualEvaluation = true
+  private def textToChromo(text: String): Chromosome = text.map {
+    case '1'  => true
+    case _    => false
+  }
+
+  private def chromoToText(c: Chromosome): String = c.map(if (_) '1' else '0')(breakOut)
+
+  override def humanEvaluationSteps = 6
+
+  override def hasHumanSelection = true
+
+  private val chromoTextField = new swing.TextField(16)
+  // private val chromoEditorComponent     = new DefaultCellEditor(chromoEditorComponentTxt)
+
+  //  private def configureChromoEditor(c: Chromosome): Unit =
+  //    chromoEditorComponent.getTableCellEditorComponent(null, c, true, 0, 0)
+
+  override lazy val chromosomeEditorOption: Option[(swing.Component, () => Chromosome, Chromosome => Unit)] =
+    Some(chromoTextField, () => textToChromo(chromoTextField.text), c => chromoTextField.text = chromoToText(c))
 }
 
 case class EvalMatchConst(target: Boolean = false) extends TestSys.Evaluation {
