@@ -245,7 +245,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
     sys.chromosomeEditorOption.foreach { case (editor, getter, setter) =>
       tt.peer.setDefaultEditor(sys.chromosomeClassTag.runtimeClass,
-        new ChromosomeEditor[sys.Chromosome](editor)(getter())(setter))
+        ChromosomeEditor[sys.Chromosome](editor)(getter())(setter))
     }
 
     rating.foreach { r =>
