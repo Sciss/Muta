@@ -2,7 +2,7 @@ package de.sciss.muta
 package gui
 
 import de.sciss.desktop.impl.SwingApplicationImpl
-import de.sciss.desktop.{KeyStrokes, Menu}
+import de.sciss.desktop.{FileDialog, KeyStrokes, Menu}
 import java.awt.event.KeyEvent
 import javax.swing.UIManager
 
@@ -33,6 +33,18 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
     */
   protected def rowHeight = -1
 
+  private def mkDocFrame(): DocumentFrame[S] = {
+    // val doc = newDocument() // new Document
+    val f = DocumentFrame(app) // (doc)
+    configureDocumentFrame(f)
+    val rh = rowHeight
+    if (rh > 0) {
+      f.mainTable    .peer.setRowHeight(rh)
+      f.breedingTable.peer.setRowHeight(rh)
+    }
+    f
+  }
+
   protected lazy val menuFactory = {
     import Menu._
     import KeyStrokes._
@@ -40,19 +52,22 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
     Root().add(
       Group("file", "File").add(
         Item("new")("New" -> (menu1 + VK_N)) {
-          // val doc = newDocument() // new Document
-          val f = DocumentFrame(app) // (doc)
-          configureDocumentFrame(f)
-          val rh = rowHeight
-          if (rh > 0) {
-            f.mainTable    .peer.setRowHeight(rh)
-            f.breedingTable.peer.setRowHeight(rh)
-          }
-          f.open()
+          val fr = mkDocFrame()
+          fr.open()
         }
       ).add(
+        Item("open")("Open..." -> (menu1 + VK_O)) {
+          val dlg = FileDialog.open(title = "Open Document")
+          dlg.show(None).foreach { file =>
+            val fr = mkDocFrame()
+            fr.load(file)
+            fr.open()
+          }
+        }
+      ).addLine()
+      .add(
         Group("import", "Import").add(
-          Item("settings", proxy("Algorithm Settings..."      -> (menu1 + alt   + VK_O)))
+          Item("settings", proxy("Algorithm Settings..." -> (menu1 + alt + VK_O)))
         )
       ).add(
         Group("export", "Export")
@@ -60,11 +75,15 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
           //          Item("lily", proxy("Selection As Lilypond Score..." -> (menu1 + shift + VK_S)))
           //        )
           .add(
-          Item("settings", proxy("Algorithm Settings..."      -> (menu1 + alt   + VK_S)))
+          Item("settings", proxy("Algorithm Settings..." -> (menu1 + alt + VK_S)))
         )
         .add(
-          Item("table", proxy("Selection As PDF Table..."     -> (menu1 +         VK_T)))
+          Item("table", proxy("Selection As PDF Table..." -> (menu1 + VK_T)))
         )
+      ).addLine().add(
+        Item("save", proxy("Save" -> (menu1 + VK_S)))
+      ).add(
+        Item("save-as", proxy("Save As..." -> (menu1 + shift + VK_S)))
       )
     )
   }

@@ -23,6 +23,8 @@ object Settings {
       val breeding    = _breeding
     }
   }
+
+  // def unapply(s: Settings)
 }
 trait Settings {
   type S <: System

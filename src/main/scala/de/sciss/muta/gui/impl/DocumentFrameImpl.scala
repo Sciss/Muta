@@ -11,7 +11,6 @@ import java.awt.EventQueue
 import collection.immutable.{IndexedSeq => Vec}
 import de.sciss.swingplus.Spinner
 import de.sciss.treetable.j.{DefaultTreeTableCellEditor, DefaultTreeTableSorter}
-import scala.swing.event.ValueChanged
 import de.sciss.file._
 import de.sciss.processor.impl.ProcessorImpl
 import de.sciss.processor.Processor
@@ -22,11 +21,11 @@ import de.sciss.muta.gui.{ProgressIcon, SettingsFrame, GeneticApp}
 import scala.annotation.switch
 import de.sciss.rating.Rating
 import de.sciss.rating.j.DefaultRatingModel
-import java.awt.event.ActionEvent
-import scala.Some
 import scala.swing.event.ButtonClicked
 import scala.swing.event.KeyTyped
 import de.sciss.muta.HeaderInfo
+import collection.breakOut
+import play.api.libs.json.{JsValue, JsObject, JsArray, Writes, Json}
 
 final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) extends DocumentFrame[S] { outer =>
   type S1 = S
@@ -322,7 +321,13 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     val glob  = generation.global
     val r     = random
     val n     = fun(genome.map(node => (node.chromosome, node.fitness, node.selected)), glob, r)
-    n.zipWithIndex.map { case (c, idx) => new Node(index = idx, chromosome = c)}
+
+    lazy val fitMap = (genome.map(n => n.chromosome -> n.fitness)(breakOut):
+      Map[sys.Chromosome, Double]) withDefaultValue defaultFitness
+
+    val fitFun: sys.Chromosome => Double = if (sys.hasHumanEvaluation) fitMap.apply else _ => defaultFitness
+
+    n.zipWithIndex.map { case (c, idx) => new Node(index = idx, chromosome = c, fitness = fitFun(c)) }
   }
 
   def selectedNodes = mainTable.selection.paths.map(_.last).toIndexedSeq.sortBy(-_.fitness)
@@ -414,6 +419,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
       val ggFeed = Button("\u21E7") {
         tmTop.updateNodes(tmBot.root.children)
+        iterations += 1
       }
       ggFeed.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
       ggFeed.peer.putClientProperty("JButton.segmentPosition", "only")
@@ -497,11 +503,33 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     bottomComponent = splitBot
   }
 
+  private def settingsFieldsToJson(): Seq[(String, JsValue)] = Seq(
+    "info"        -> Json.format[HeaderInfo].writes(settings.info      ),
+    "generation"  -> sys.generationFormat   .writes(settings.generation),
+    "evaluation"  -> sys.evaluationFormat   .writes(settings.evaluation),
+    "selection"   -> sys.selectionFormat    .writes(settings.selection ),
+    "breeding"    -> sys.breedingFormat     .writes(settings.breeding  )
+  )
+
   object window extends WindowImpl { me =>
     def handler = app.windowHandler
     def style   = Window.Regular
     contents    = ggSplit
-    title       = "Genetic Algorithm"
+
+    def saveDialog(): Option[File] = {
+      val dlg = FileDialog.save(title = "Save Document", init = file)
+      dlg.show(Some(me))
+    }
+
+    def save(f: File): Unit = {
+      println("Save: TODO")
+      file = Some(f)
+      updateTitle()
+    }
+
+    def updateTitle(): Unit = title = file.fold(app.name)(f => s"${f.base} : ${app.name}")
+
+    updateTitle()
 
     // XXX TODO
     //    bindMenu("file.export.lily", Action("") {
@@ -510,12 +538,21 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     //        ExportLilypond.dialog(settings, nodes.map(n => (n.chromosome, n.fitness)))
     //      }
     //    })
-    //    bindMenu("file.export.settings", Action("") {
-    //      val dlg = FileDialog.save(title = "Export Algorithm Settings")
-    //      dlg.show(Some(me)).foreach { f =>
-    //        SettingsIO.write(settings, f.replaceExt("json"))
-    //      }
-    //    })
+    bindMenu("file.export.settings", Action("") {
+      val dlg = FileDialog.save(title = "Export Algorithm Settings")
+      dlg.show(Some(me)).foreach { f =>
+        implicit val settingsR = Writes[Settings { type S = sys.type }] { settings =>
+          JsObject(settingsFieldsToJson())
+        }
+        SettingsIO.write(settings, f.replaceExt("json"))
+      }
+    })
+    bindMenu("file.save", Action("") {
+      (file orElse saveDialog()).foreach(save)
+    })
+    bindMenu("file.save-as", Action("") {
+      saveDialog().foreach(save)
+    })
     bindMenu("file.export.table", Action("") {
       val nodes = selectedNodes
       if (nodes.nonEmpty) {
@@ -540,6 +577,10 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   }
 
   def open(): Unit = window.open()
+
+  def load(file: File): Unit = {
+    scala.sys.error("TODO: Load")
+  }
 
   def exportTableAsPDF(f: File, genome: sys.GenomeVal): Unit = {
     // XXX TODO

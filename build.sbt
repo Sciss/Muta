@@ -21,13 +21,19 @@ licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 //   "org.scala-lang" % "scala-reflect" % sv
 // }
 
+resolvers ++= Seq(
+  "Mandubian repository snapshots" at "https://github.com/mandubian/mandubian-mvn/raw/master/snapshots/",
+  "Sonatype OSS snapshots"         at "https://oss.sonatype.org/content/repositories/snapshots/"
+)
+
 libraryDependencies ++= Seq(
   "de.sciss" %% "fileutil"        % "1.0.+",    // Easy file representation
   "de.sciss" %% "desktop"         % "0.3.+",    // Application framework
   "de.sciss" %% "treetable-scala" % "1.3.1+",   // Treetable widget
   "de.sciss" %% "guiflitz"        % "0.1.+",    // Automatic configuration GUIs
   "de.sciss" %% "processor"       % "0.2.+",    // Asynchronous iteration
-  "de.sciss" %% "rating-scala"    % "0.1.1+"    // Rating widget
+  "de.sciss" %% "rating-scala"    % "0.1.1+",   // Rating widget
+  "de.sciss" %% "play-json-sealed" % "0.0.+"
 )
 
 retrieveManaged := true

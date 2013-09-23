@@ -6,7 +6,7 @@ import javax.swing.JCheckBox
 import de.sciss.treetable.j
 import scala.swing.event.ValueChanged
 import java.awt.event.ActionEvent
-import scala.swing.{TextField, Component}
+import scala.swing.Component
 
 object ChromosomeEditor {
   def apply[A](peer: Component)(getter: => A)(setter: A => Unit): ChromosomeEditor[A] =

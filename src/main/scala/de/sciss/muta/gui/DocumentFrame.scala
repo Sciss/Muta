@@ -2,6 +2,7 @@ package de.sciss.muta
 package gui
 
 import de.sciss.treetable.TreeTable
+import de.sciss.file.File
 
 object DocumentFrame {
   def apply[S <: System](app: GeneticApp[S]): DocumentFrame[S] = new impl.DocumentFrameImpl[S](app)
@@ -21,4 +22,6 @@ trait DocumentFrame[S <: System] {
   def breedingTable : TreeTable[_, _]
 
   def open(): Unit
+
+  def load(file: File): Unit
 }

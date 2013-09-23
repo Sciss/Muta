@@ -3,6 +3,7 @@ package muta
 
 import scala.reflect.ClassTag
 import de.sciss.guiflitz.{Cell, AutoView}
+import play.api.libs.json.Format
 
 trait System {
   /** The chromosome is one "sequence" to be generated and evaluated. Typically this will be a collection
@@ -60,6 +61,12 @@ trait System {
 
   /** Creates a GUI view for editing the evaluation settings. */
   def evaluationViewOption: Option[(Evaluation, AutoView.Config) => AutoView[Evaluation]]
+
+  def generationFormat: Format[Generation]
+  def selectionFormat : Format[Selection ]
+  def breedingFormat  : Format[Breeding  ]
+  def evaluationFormat: Format[Evaluation]
+  def chromosomeFormat: Format[Chromosome]
 
   /** Provides a view component for the chromosomes in the genome table.
     * This method is guaranteed single threaded and called on the event dispatch thread,
