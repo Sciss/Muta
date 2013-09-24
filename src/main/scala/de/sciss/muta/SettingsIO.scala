@@ -1,18 +1,22 @@
 package de.sciss.muta
 
 import java.io.{FileInputStream, FileOutputStream, OutputStreamWriter, File}
-import play.api.libs.json.{Reads, Writes, Json}
+import play.api.libs.json.{JsError, JsSuccess, Reads, Writes, Json}
+import scala.util.{Success, Failure, Try}
 
 object SettingsIO {
-  def write[S](settings: S, file: File)(implicit writes: Writes[S]): Unit = {
+  def write[S](settings: S, file: File)(implicit writes: Writes[S]): Try[Unit] = Try {
     val json  = Json.toJson(settings) // (Formats.settings)
     val w     = new OutputStreamWriter(new FileOutputStream(file), "UTF-8")
-    w.write(Json.prettyPrint(json))
-    w.flush()
-    w.close()
+    try {
+      w.write(Json.prettyPrint(json))
+      w.flush()
+    } finally {
+      w.close()
+    }
   }
 
-  def read[S](file: File)(implicit reads: Reads[S]): S = {
+  def read[S](file: File)(implicit reads: Reads[S]): Try[S] = {
     val fis   = new FileInputStream(file)
     val sz    = fis.available()
     val arr   = new Array[Byte](sz)
@@ -21,6 +25,10 @@ object SettingsIO {
     val str   = new String(arr, "UTF-8")
     val json  = Json.parse(str)
     val res   = Json.fromJson[S](json) // (Formats.settings)
-    res.getOrElse(sys.error("JSON decoding failed"))
+    // res.getOrElse(sys.error("JSON decoding failed"))
+    res match {
+      case JsSuccess(s, _)  => Success(s)
+      case JsError(e)       => Failure(new Exception(e.mkString(", ")))
+    }
   }
 }

@@ -560,9 +560,14 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
           ))
         })))
       }
-      SettingsIO.write(currentTable -> settings, f.replaceExt("json"))
-      file = Some(f)
-      updateTitle()
+      SettingsIO.write(currentTable -> settings, f.replaceExt("json")) match {
+        case Success(_) =>
+          file = Some(f)
+          updateTitle()
+        case Failure(e: Exception) =>
+          showDialog(e -> "Save Document")
+        case Failure(e) => e.printStackTrace()
+      }
     }
 
     def updateTitle(): Unit = title = file.fold(app.name)(f => s"${f.base} : ${app.name}")
@@ -612,47 +617,57 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       pack()
       front()
     }
+
+    def load(file: File): Unit = {
+      val settingsR = Reads[Document] {
+        case JsObject(sq) =>
+          val m = sq.toMap
+          for {
+            _settings <- settingsFieldsFromJson(m)
+            _genome   <- m.get("genome").fold[JsResult[Vec[Node]]](JsError(s"Field for genome not found")) {
+              case JsArray(nj) =>
+                val nst = Try {
+                  val nodes: Vec[Node] = nj.zipWithIndex.map {
+                    case (JsObject(nfj), idx) =>
+                      val m1                = nfj.toMap
+                      val chromoj           = m1("chromosome")
+                      val chromo            = sys.chromosomeFormat.reads(chromoj).get
+                      val JsNumber(fitNum)  = m1("fitness")
+                      val JsBoolean(sel)    = m1("selected")
+                      new Node(index = idx, chromosome = chromo, fitness = fitNum.toDouble, selected = sel)
+
+                    case (other, _) => scala.sys.error(s"Not a JSON object $other")
+                  } (breakOut)
+                  nodes
+                }
+                nst match {
+                  case Success(ns)  => JsSuccess(ns)
+                  case Failure(e)   => JsError(e.getMessage)
+                }
+
+              case other => JsError(s"Not a JSON array $other")
+            }
+          } yield (_genome, _settings)
+
+        case json => JsError(s"Not a JSON object $json")
+      }
+
+      SettingsIO.read(file)(settingsR) match {
+        case Success((gen, set)) =>
+          settings      = set
+          currentTable  = gen
+
+        case Failure(e: Exception) =>
+          showDialog(e -> "Open Document")
+
+        case Failure(e) => e.printStackTrace()
+      }
+    }
   }
 
   def open(): Unit = window.open()
 
-  def load(file: File): Unit = {
-    val settingsR = Reads[Document] {
-      case JsObject(sq) =>
-        val m = sq.toMap
-        for {
-          _settings <- settingsFieldsFromJson(m)
-          _genome   <- m.get("genome").fold[JsResult[Vec[Node]]](JsError(s"Field for genome not found")) {
-            case JsArray(nj) =>
-              val nst = Try {
-                val nodes: Vec[Node] = nj.zipWithIndex.map {
-                  case (JsObject(nfj), idx) =>
-                    val m1                = nfj.toMap
-                    val chromoj           = m1("chromosome")
-                    val chromo            = sys.chromosomeFormat.reads(chromoj).get
-                    val JsNumber(fitNum)  = m1("fitness")
-                    val JsBoolean(sel)    = m1("selected")
-                    new Node(index = idx, chromosome = chromo, fitness = fitNum.toDouble, selected = sel)
-
-                  case (other, _) => scala.sys.error(s"Not a JSON object $other")
-                } (breakOut)
-                nodes
-              }
-              nst match {
-                case Success(ns)  => JsSuccess(ns)
-                case Failure(e)   => JsError(e.getMessage)
-              }
-
-            case other => JsError(s"Not a JSON array $other")
-          }
-        } yield (_genome, _settings)
-
-      case json => JsError(s"Not a JSON object $json")
-    }
-    val (gen, set) = SettingsIO.read(file)(settingsR)
-    settings      = set
-    currentTable  = gen
-  }
+  def load(file: File): Unit = window.load(file)
 
   def exportTableAsPDF(f: File, genome: sys.GenomeVal): Unit = {
     // XXX TODO
