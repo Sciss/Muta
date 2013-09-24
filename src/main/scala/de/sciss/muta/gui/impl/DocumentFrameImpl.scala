@@ -426,7 +426,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
         peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
         peer.putClientProperty("JButton.segmentPosition", "first")
-        preferredSize = (preferredSize.width, preferredSize.height)
+        preferredSize = (84, preferredSize.height)
         minimumSize   = preferredSize
         maximumSize   = preferredSize
       }
