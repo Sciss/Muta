@@ -383,20 +383,54 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   val pButtons = new FlowPanel {
     contents += new BoxPanel(Orientation.Horizontal) {
-      val ggGen = Button("Generate") {
-        implicit val r  = sys.rng(generation.seed)
-        random          = r
-        val pop         = generation.size
-        // val glob        = generation.global
-        val nodes       = Vector.tabulate(pop) { idx =>
-          val sq  = generation(r)
-          new Node(index = idx, chromosome = sq)
+      val ggGen = new Button("Generate") {
+        var proc      = Option.empty[GenProc]
+        val progIcon  = new ProgressIcon(33)
+
+        listenTo(this)
+        reactions += {
+          case ButtonClicked(_) =>
+            proc match {
+              case Some(p) => p.abort()
+              case _ =>
+                val random  = sys.rng(generation.seed)
+                val pop     = generation.size
+                val p       = new GenProc(pop, random)
+                proc    = Some(p)
+                p.addListener {
+                  case prog @ Processor.Progress(_, _) => defer {
+                    progIcon.value = prog.toInt
+                    repaint()
+                  }
+                }
+                import ExecutionContext.Implicits.global
+                p.start()
+                text            = "\u2716"
+                progIcon.value  = 0
+                icon            = progIcon
+                p.onComplete {
+                  case _ => defer {
+                    icon  = EmptyIcon
+                    text  = "Generate"
+                    proc  = None
+                  }
+                }
+                p.onSuccess {
+                  case nodes => defer {
+                    tmTop.updateNodes(nodes)
+                    iterations = 0
+                  }
+                }
+            }
         }
-        tmTop.updateNodes(nodes)
-        iterations = 0
+
+        peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
+        peer.putClientProperty("JButton.segmentPosition", "first")
+        preferredSize = (preferredSize.width, preferredSize.height)
+        minimumSize   = preferredSize
+        maximumSize   = preferredSize
       }
-      ggGen.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
-      ggGen.peer.putClientProperty("JButton.segmentPosition", "first")
+
       val ggGenSettings = mkSettingsButton[sys.Generation]("Generation")(sys.generationView)(generation)(generation = _)
 
       val evalOpt = sys.evaluationViewOption.map { evalViewFun =>
@@ -442,7 +476,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       val ggNumIter = new Spinner(mNumIter)
       ggNumIter.tooltip = "Number of iterations to perform at once"
       val ggIter = new Button("Iterate") { // \u238C \u260D \u267B
-        var proc      = Option.empty[Proc]
+        var proc      = Option.empty[IterProc]
         val progIcon  = new ProgressIcon(33)
 
         listenTo(this)
@@ -453,7 +487,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
               case _ =>
                 val num = mNumIter.getNumber.intValue()
                 val in  = currentTable
-                val p   = new Proc(in, num)
+                val p   = new IterProc(in, num)
                 proc    = Some(p)
                 p.addListener {
                   case prog @ Processor.Progress(_, _) => defer {
@@ -677,7 +711,18 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     //    Seq(pdfViewer, f1.path).!
   }
 
-  class Proc(in: Vec[Node], num: Int) extends ProcessorImpl[Vec[Node], Proc] {
+  class GenProc(pop: Int, r: util.Random) extends ProcessorImpl[Vec[Node], GenProc] {
+    protected def body(): Vec[Node] =
+      Vec.tabulate(pop) { idx =>
+        val sq  = generation(r)
+        val n   = new Node(index = idx, chromosome = sq)
+        checkAborted()
+        progress((idx + 1).toFloat / pop)
+        n
+      }
+  }
+
+  class IterProc(in: Vec[Node], num: Int) extends ProcessorImpl[Vec[Node], IterProc] {
     protected def body(): Vec[Node] = {
       // we want to stop the iteration with evaluation, so that the fitnesses are shown in the top pane
       // ; ensure that initially the nodes have been evaluation
