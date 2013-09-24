@@ -25,7 +25,9 @@ import scala.swing.event.ButtonClicked
 import scala.swing.event.KeyTyped
 import de.sciss.muta.HeaderInfo
 import collection.breakOut
-import play.api.libs.json.{JsBoolean, JsNumber, JsValue, JsObject, JsArray, Writes, Json}
+import play.api.libs.json.{JsSuccess, JsError, JsResult, Reads, JsBoolean, JsNumber, JsValue, JsObject, JsArray, Writes, Json}
+import scala.util.{Success, Failure, Try}
+import scala.util.control.NonFatal
 
 final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) extends DocumentFrame[S] { outer =>
   type S1 = S
@@ -33,6 +35,8 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   val system: S1 = application.system
 
   import outer.{system => sys, application => app}
+
+  private type SysSettings = Settings { type S = sys.type }
 
   private def defaultFitness = if (sys.hasHumanEvaluation) 0.0 else Double.NaN
 
@@ -182,7 +186,11 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
     override def getTreeTableCellRendererComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
                                                    hasFocus: Boolean, row: Int, column: Int): java.awt.Component = {
-      super.getTreeTableCellRendererComponent(treeTable, value, selected, hasFocus, row, column)
+      try {
+        super.getTreeTableCellRendererComponent(treeTable, value, selected, hasFocus, row, column)
+      } catch {
+        case _: NullPointerException => // Ssssssuckers
+      }
       val c1 = treeTable.convertColumnIndexToModel(column)
       setHorizontalAlignment(if (c1 == 0) SwingConstants.RIGHT else SwingConstants.LEFT)
       (c1: @switch) match {
@@ -279,12 +287,13 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     // contents += ggGen
   }
 
-  def currentTable: Vec[Node] = tmTop.root.children
+  def currentTable        : Vec[Node]         = tmTop.root.children
+  def currentTable_=(nodes: Vec[Node]): Unit  = tmTop.updateNodes(nodes)
 
-  type Document = (Vec[Node], Settings { type S = sys.type })
+  type Document = (Vec[Node], SysSettings)
 
-  def settings: Settings { type S = sys.type } = Settings(sys)(info, generation, evaluation, selection, breeding)
-  def settings_=(s: Settings { type S = sys.type }): Unit = {
+  def settings: SysSettings = Settings(sys)(info, generation, evaluation, selection, breeding)
+  def settings_=(s: SysSettings): Unit = {
     evaluation  = s.evaluation
     selection   = s.selection
     breeding    = s.breeding
@@ -515,6 +524,22 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     "breeding"    -> sys.breedingFormat     .writes(settings.breeding  )
   )
 
+  private def settingsFieldsFromJson(fields: Map[String, JsValue]): JsResult[SysSettings] = {
+    val res = Try(for {
+      info    <- Json.format[HeaderInfo].reads(fields("info"      ))
+      gen     <- sys.generationFormat   .reads(fields("generation"))
+      eval    <- sys.evaluationFormat   .reads(fields("evaluation"))
+      select  <- sys.selectionFormat    .reads(fields("selection" ))
+      breed   <- sys.breedingFormat     .reads(fields("breeding"  ))
+    } yield {
+      Settings(sys)(info, gen, eval, select, breed)
+    })
+    res match {
+      case Success(s) => s
+      case Failure(e) => JsError(e.getMessage)
+    }
+  }
+
   object window extends WindowImpl { me =>
     def handler = app.windowHandler
     def style   = Window.Regular
@@ -526,7 +551,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     }
 
     def save(f: File): Unit = {
-      implicit val settingsR = Writes[Document] { case (nodes, settings) =>
+      implicit val settingsW = Writes[Document] { case (nodes, settings) =>
         JsObject(settingsFieldsToJson() :+ ("genome" -> JsArray(nodes.map { n =>
           JsObject(Seq(
             "chromosome" -> sys.chromosomeFormat.writes(n.chromosome),
@@ -554,7 +579,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     bindMenu("file.export.settings", Action("") {
       val dlg = FileDialog.save(title = "Export Algorithm Settings")
       dlg.show(Some(me)).foreach { f =>
-        implicit val settingsR = Writes[Settings { type S = sys.type }] { settings =>
+        implicit val settingsW = Writes[SysSettings] { settings =>
           JsObject(settingsFieldsToJson())
         }
         SettingsIO.write(settings, f.replaceExt("json"))
@@ -591,7 +616,43 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   def open(): Unit = window.open()
 
-  def load(file: File): Unit = ???
+  def load(file: File): Unit = {
+    val settingsR = Reads[Document] {
+      case JsObject(sq) =>
+        val m = sq.toMap
+        for {
+          _settings <- settingsFieldsFromJson(m)
+          _genome   <- m.get("genome").fold[JsResult[Vec[Node]]](JsError(s"Field for genome not found")) {
+            case JsArray(nj) =>
+              val nst = Try {
+                val nodes: Vec[Node] = nj.zipWithIndex.map {
+                  case (JsObject(nfj), idx) =>
+                    val m1                = nfj.toMap
+                    val chromoj           = m1("chromosome")
+                    val chromo            = sys.chromosomeFormat.reads(chromoj).get
+                    val JsNumber(fitNum)  = m1("fitness")
+                    val JsBoolean(sel)    = m1("selected")
+                    new Node(index = idx, chromosome = chromo, fitness = fitNum.toDouble, selected = sel)
+
+                  case (other, _) => scala.sys.error(s"Not a JSON object $other")
+                } (breakOut)
+                nodes
+              }
+              nst match {
+                case Success(ns)  => JsSuccess(ns)
+                case Failure(e)   => JsError(e.getMessage)
+              }
+
+            case other => JsError(s"Not a JSON array $other")
+          }
+        } yield (_genome, _settings)
+
+      case json => JsError(s"Not a JSON object $json")
+    }
+    val (gen, set) = SettingsIO.read(file)(settingsR)
+    settings      = set
+    currentTable  = gen
+  }
 
   def exportTableAsPDF(f: File, genome: sys.GenomeVal): Unit = {
     // XXX TODO

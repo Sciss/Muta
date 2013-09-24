@@ -26,6 +26,8 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
       case info if info.getName == "Nimbus" => info.getClassName
     }
     nimbusOption.foreach(UIManager.setLookAndFeel)
+
+    LogWindow(this)
   }
 
   /** Override this to enforce a specific row height in the genome tables. The default value of `-1`
