@@ -3,9 +3,17 @@ package gui
 
 import de.sciss.treetable.TreeTable
 import de.sciss.file.File
+import scala.swing.{SequentialContainer, Panel}
 
 object DocumentFrame {
   def apply[S <: System](app: GeneticApp[S]): DocumentFrame[S] = new impl.DocumentFrameImpl[S](app)
+
+  trait NodeLike[C] {
+    def index     : Int
+    def chromosome: C
+    def fitness   : Double
+    def selected  : Boolean
+  }
 }
 trait DocumentFrame[S <: System] {
   val application: GeneticApp[S]
@@ -24,4 +32,10 @@ trait DocumentFrame[S <: System] {
   def open(): Unit
 
   def load(file: File): Unit
+
+  type Node <: DocumentFrame.NodeLike[system.Chromosome]
+
+  def selectedNodes: Vec[Node]
+
+  def topPanel: SequentialContainer
 }

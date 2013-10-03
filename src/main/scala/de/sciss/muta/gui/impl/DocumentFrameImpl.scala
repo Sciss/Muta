@@ -42,6 +42,10 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   final class Node(val index: Int, var chromosome: sys.Chromosome, var fitness: Double = defaultFitness,
                    var selected: Boolean = false, val children: Vec[Node] = Vec.empty)
+    extends DocumentFrame.NodeLike[sys.Chromosome] {
+
+    override def toString = s"Node(index = $index, chromosome = $chromosome, fitness = $fitness, selected = $selected)"
+  }
 
   var random      = sys.rng(0L)
   var evaluation: sys.Evaluation  = sys.defaultEvaluation  // EvalWindowed()
@@ -281,14 +285,18 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   val breedingTable = mkTreeTable(tmBot, tcmBot)
   val ggScrollBot   = new ScrollPane(breedingTable)
 
+  val topPanel      = new FlowPanel(pInfo.component)
+
   val pTopSettings = new BoxPanel(Orientation.Vertical) {
-    contents += new FlowPanel(pInfo.component)  // XXX TODO: needs FlowPanel for correct layout
+    contents += topPanel  // XXX TODO: needs FlowPanel for correct layout
     contents += VStrut(4)
     // contents += ggGen
   }
 
   def currentTable        : Vec[Node]         = tmTop.root.children
   def currentTable_=(nodes: Vec[Node]): Unit  = tmTop.updateNodes(nodes)
+
+  def selectedNodes = mainTable.selection.paths.map(_.last).toIndexedSeq.sortBy(-_.fitness)
 
   type Document = (Vec[Node], SysSettings)
 
@@ -342,8 +350,6 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
     n.zipWithIndex.map { case (c, idx) => new Node(index = idx, chromosome = c, fitness = fitFun(c)) }
   }
-
-  def selectedNodes = mainTable.selection.paths.map(_.last).toIndexedSeq.sortBy(-_.fitness)
 
   def defer(thunk: => Unit): Unit =
     if (EventQueue.isDispatchThread) thunk else onEDT(thunk)
