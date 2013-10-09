@@ -1,9 +1,9 @@
-package de.sciss
-package muta
+package de.sciss.muta
 
 import scala.reflect.ClassTag
-import de.sciss.guiflitz.{Cell, AutoView}
+import de.sciss.guiflitz.AutoView
 import play.api.libs.json.Format
+import de.sciss.muta
 
 trait System {
   /** The chromosome is one "sequence" to be generated and evaluated. Typically this will be a collection

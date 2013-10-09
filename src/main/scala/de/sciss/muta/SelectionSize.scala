@@ -1,6 +1,6 @@
 package de.sciss.muta
 
-import play.api.libs.json.SealedTraitFormat
+import de.sciss.play.json.AutoFormat
 
 /** Selects an absolute number of individuals
   *
@@ -12,7 +12,7 @@ case class SelectionNumber(value: Int = 10) extends SelectionSize {
 }
 
 object SelectionPercent {
-  implicit val format = SealedTraitFormat[SelectionPercent]
+  implicit val format = AutoFormat[SelectionPercent]
 }
 /** Selects the number of individuals corresponding to
   * a given percentage of the total population.
@@ -25,6 +25,6 @@ case class SelectionPercent(value: Int = 20) extends SelectionSize {
 }
 
 object SelectionSize {
-  implicit val format = SealedTraitFormat[SelectionSize]
+  implicit val format = AutoFormat[SelectionSize]
 }
 sealed trait SelectionSize extends (Int => Int)

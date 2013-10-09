@@ -1,10 +1,11 @@
-package de.sciss
-package muta
+package de.sciss.muta
 
 import de.sciss.guiflitz.AutoView
 import scala.util.Random
 import collection.breakOut
-import play.api.libs.json.{JsError, JsSuccess, JsString, JsResult, JsValue, Format, SealedTraitFormat}
+import play.api.libs.json.{JsError, JsSuccess, JsString, JsResult, JsValue, Format}
+import de.sciss.play.json.AutoFormat
+import de.sciss.muta
 
 sealed trait SelectionImpl extends muta.Selection [TestSys.Chromosome]
 
@@ -63,11 +64,11 @@ object TestSys extends System {
   def breedingView  (init: Breeding  , config: AutoView.Config) = AutoView[Breeding  ](init, config)
 
 
-  def generationFormat  = SealedTraitFormat[Generation    ]
-  def selectionFormat   = SealedTraitFormat[SelectionImpl ]
-  private implicit val breedingFunctionFormat = SealedTraitFormat[BreedingFunctionImpl]
-  def breedingFormat    = SealedTraitFormat[Breeding      ]
-  def evaluationFormat  = SealedTraitFormat[EvaluationImpl]
+  def generationFormat  = AutoFormat[Generation    ]
+  def selectionFormat   = AutoFormat[SelectionImpl ]
+  private implicit val breedingFunctionFormat = AutoFormat[BreedingFunctionImpl]
+  def breedingFormat    = AutoFormat[Breeding      ]
+  def evaluationFormat  = AutoFormat[EvaluationImpl]
   object chromosomeFormat extends Format[Chromosome] {
     def reads(json: JsValue): JsResult[Chromosome] = json match {
       case JsString(s)  => JsSuccess(textToChromo(s))
