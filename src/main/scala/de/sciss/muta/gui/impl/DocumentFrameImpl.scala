@@ -25,9 +25,10 @@ import scala.swing.event.ButtonClicked
 import scala.swing.event.KeyTyped
 import de.sciss.muta.HeaderInfo
 import collection.breakOut
-import play.api.libs.json.{JsSuccess, JsError, JsResult, Reads, JsBoolean, JsNumber, JsValue, JsObject, JsArray, Writes, Json}
+import play.api.libs.json.{Format, JsSuccess, JsError, JsResult, Reads, JsBoolean, JsNumber, JsValue, JsObject, JsArray, Writes, Json}
 import scala.util.{Success, Failure, Try}
 import scala.util.control.NonFatal
+import de.sciss.play.json.AutoFormat
 
 final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) extends DocumentFrame[S] { outer =>
   type S1 = S
@@ -556,22 +557,30 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     bottomComponent = splitBot
   }
 
-  private def settingsFieldsToJson(): Vec[(String, JsValue)] = Vec(
-    "info"        -> Json.format[HeaderInfo].writes(settings.info      ),
-    "generation"  -> sys.generationFormat   .writes(settings.generation),
-    "evaluation"  -> sys.evaluationFormat   .writes(settings.evaluation),
-    "selection"   -> sys.selectionFormat    .writes(settings.selection ),
-    "breeding"    -> sys.breedingFormat     .writes(settings.breeding  )
-  )
+  private def settingsFieldsToJson(): Vec[(String, JsValue)] = {
+    val v1 = Vec(
+      "info"        -> Json.format[HeaderInfo].writes(settings.info      ),
+      "generation"  -> sys.generationFormat   .writes(settings.generation),
+      // "evaluation"  -> sys.evaluationFormat   .writes(settings.evaluation),
+      "selection"   -> sys.selectionFormat    .writes(settings.selection ),
+      "breeding"    -> sys.breedingFormat     .writes(settings.breeding  )
+    )
+    if (sys.evaluationViewOption.isEmpty) v1 else {
+      v1 :+ "evaluation" -> sys.evaluationFormat.writes(settings.evaluation)
+    }
+  }
 
   private def settingsFieldsFromJson(fields: Map[String, JsValue]): JsResult[SysSettings] = {
     val res = Try(for {
       info    <- Json.format[HeaderInfo].reads(fields("info"      ))
       gen     <- sys.generationFormat   .reads(fields("generation"))
-      eval    <- sys.evaluationFormat   .reads(fields("evaluation"))
+      // eval    <- sys.evaluationFormat   .reads(fields("evaluation"))
       select  <- sys.selectionFormat    .reads(fields("selection" ))
       breed   <- sys.breedingFormat     .reads(fields("breeding"  ))
     } yield {
+      val eval = fields.get("evaluation").fold(evaluation) { f =>
+        sys.evaluationFormat.reads(f).get
+      }
       Settings(sys)(info, gen, eval, select, breed)
     })
     res match {
@@ -591,12 +600,13 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     }
 
     def save(f: File): Unit = {
-      implicit val settingsW = Writes[Document] { case (nodes, settings) =>
+      // Note: cannot use auto formats here, because node indices are implied from JsArray indices
+      implicit val documentW = Writes[Document] { case (nodes, settings) =>
         JsObject(settingsFieldsToJson() :+ ("genome" -> JsArray(nodes.map { n =>
           JsObject(Seq(
             "chromosome" -> sys.chromosomeFormat.writes(n.chromosome),
             "fitness"    -> JsNumber(n.fitness),
-            "selected"    -> JsBoolean(n.selected)
+            "selected"   -> JsBoolean(n.selected)
           ))
         })))
       }
@@ -659,6 +669,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     }
 
     def load(file: File): Unit = {
+      // Note: cannot use auto formats here, because node indices are implied from JsArray indices
       val settingsR = Reads[Document] {
         case JsObject(sq) =>
           val m = sq.toMap
