@@ -3,7 +3,8 @@ package gui
 
 import de.sciss.treetable.TreeTable
 import de.sciss.file.File
-import scala.swing.{SequentialContainer, Panel}
+import scala.swing.{Action, SequentialContainer, Panel}
+import de.sciss.desktop.Window
 
 object DocumentFrame {
   def apply[S <: System](app: GeneticApp[S]): DocumentFrame[S] = new impl.DocumentFrameImpl[S](app)
@@ -38,4 +39,8 @@ trait DocumentFrame[S <: System] {
   def selectedNodes: Vec[Node]
 
   def topPanel: SequentialContainer
+
+  def window: Window
+
+  def bindMenu(path: String, action: Action): Unit
 }

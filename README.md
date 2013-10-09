@@ -16,5 +16,5 @@ To use the library in your project (currently _not yet_ published):
 
     "de.sciss" %% "muta" % v
 
-The current version `v` is `"0.2.+"`
+The current version `v` is `"0.3.+"`
 

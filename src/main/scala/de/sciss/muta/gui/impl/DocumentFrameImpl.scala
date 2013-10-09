@@ -646,13 +646,15 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     bindMenu("file.save-as", Action("") {
       saveDialog().foreach(save)
     })
-    bindMenu("file.export.table", Action("") {
-      val nodes = selectedNodes
-      if (nodes.nonEmpty) {
-        val dlg = FileDialog.save(title = "Export Selection as PDF Table")
-        dlg.show(Some(me)).foreach(f => exportTableAsPDF(f, nodes.map(n => (n.chromosome, n.fitness))))
-      }
-    })
+
+    //    bindMenu("file.export.table", Action("") {
+    //      val nodes = selectedNodes
+    //      if (nodes.nonEmpty) {
+    //        val dlg = FileDialog.save(title = "Export Selection as PDF Table")
+    //        dlg.show(Some(me)).foreach(f => exportTableAsPDF(f, nodes.map(n => (n.chromosome, n.fitness))))
+    //      }
+    //    })
+
     // XXX TODO
     //    bindMenu("file.import.settings", Action("") {
     //      val dlg = FileDialog.open(title = "Import Algorithm Settings")
@@ -667,6 +669,8 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       pack()
       front()
     }
+
+    def bindMenu2(path: String, action: Action): Unit = bindMenu(path, action)
 
     def load(file: File): Unit = {
       // Note: cannot use auto formats here, because node indices are implied from JsArray indices
@@ -720,13 +724,15 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   def load(file: File): Unit = window.load(file)
 
-  def exportTableAsPDF(f: File, genome: sys.GenomeVal): Unit = {
-    // XXX TODO
-    //    import sys.process._
-    //    val f1 = f.replaceExt("pdf")
-    //    ExportTable(f1, genome, settings)
-    //    Seq(pdfViewer, f1.path).!
-  }
+  //  def exportTableAsPDF(f: File, genome: sys.GenomeVal): Unit = {
+  //    // XXX TODO
+  //    //    import sys.process._
+  //    //    val f1 = f.replaceExt("pdf")
+  //    //    ExportTable(f1, genome, settings)
+  //    //    Seq(pdfViewer, f1.path).!
+  //  }
+
+  def bindMenu(path: String, action: Action): Unit = window.bindMenu2(path, action)
 
   class GenProc(pop: Int, r: util.Random) extends ProcessorImpl[Vec[Node], GenProc] {
     protected def body(): Vec[Node] =
