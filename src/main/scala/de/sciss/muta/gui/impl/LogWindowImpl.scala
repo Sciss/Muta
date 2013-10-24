@@ -2,7 +2,7 @@ package de.sciss.muta.gui
 package impl
 
 import swing.{Component, ScrollPane, Swing}
-import java.io.OutputStream
+import java.io.{PrintStream, OutputStream}
 import javax.swing.BorderFactory
 import swing.event.WindowClosing
 import de.sciss.desktop
@@ -28,7 +28,7 @@ final class LogWindowImpl(app: desktop.SwingApplication) extends LogWindow with 
     override def write(b: Array[Byte], off: Int, len: Int): Unit = {
       log.makeDefault()               // detaches this observer
       log.outputStream.write(b, off, len)
-      Swing.onEDT(frame.front())     // there we go
+      Swing.onEDT(frame.front())      // there we go
     }
 
     def write(b: Int): Unit = {
@@ -36,9 +36,16 @@ final class LogWindowImpl(app: desktop.SwingApplication) extends LogWindow with 
     }
   }
 
+  private val observerPrint = new PrintStream(observer)
+
+  // note: while Console initially uses System, when you use `setOut` or `setErr`, it detaches itself.
+  // then only Console.println is observed, but System.println is _not_. Therefore screw Console,
+  // and modify System directly!
   def observe(): Unit = {
-    Console.setOut(observer)
-    Console.setErr(observer)
+    System.setOut(observerPrint)
+    System.setErr(observerPrint)
+    // Console.setOut(observer)
+    // Console.setErr(observer)
   }
 
   observe()
