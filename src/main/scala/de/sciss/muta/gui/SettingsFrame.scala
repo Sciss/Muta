@@ -4,7 +4,7 @@ package gui
 import de.sciss.guiflitz.AutoView
 import de.sciss.desktop.Window
 import de.sciss.desktop.impl.WindowImpl
-import scala.swing.ScrollPane
+import scala.swing.{Action, ScrollPane}
 
 class SettingsFrame[A](app: GeneticApp[_], view: AutoView[A], title: String) { me =>
   final def value       : A        = view.cell()
@@ -16,6 +16,10 @@ class SettingsFrame[A](app: GeneticApp[_], view: AutoView[A], title: String) { m
     title           = s"${me.title} Settings"
     closeOperation  = Window.CloseDispose
     contents        = new ScrollPane(view.component)
+
+    bindMenu("window.pack", Action(null) {
+      pack()
+    })
     pack()
     front()
   }

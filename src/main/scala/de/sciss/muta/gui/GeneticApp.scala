@@ -87,6 +87,10 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
       ).add(
         Item("save-as", proxy("Save As..." -> (menu1 + shift + VK_S)))
       )
+    ).add(
+      Group("window", "Window").add(
+        Item("pack", proxy("Pack" -> (menu1 + VK_P)))
+      )
     )
   }
 }
