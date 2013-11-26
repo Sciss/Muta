@@ -18,6 +18,7 @@ class SettingsFrame[A](app: GeneticApp[_], view: AutoView[A], title: String) { m
     contents        = new ScrollPane(view.component)
 
     bindMenu("window.pack", Action(null) {
+      view.component.revalidate()
       pack()
     })
     pack()
