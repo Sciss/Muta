@@ -1,8 +1,17 @@
-package de.sciss.muta
+/*
+ *  Settings.scala
+ *  (Muta)
+ *
+ *  Copyright (c) 2013-2014 Hanns Holger Rutz. All rights reserved.
+ *
+ *	This software is published under the GNU General Public License v2+
+ *
+ *
+ *	For further information, please contact Hanns Holger Rutz at
+ *	contact@sciss.de
+ */
 
-//class Settings[S <: System](val system: S)(val info: HeaderInfo, val generation: system.Generation,
-//                                    evaluation: system.Evaluation, selection: system.Selection,
-//                                    breeding: system.Breeding)
+package de.sciss.muta
 
 object Settings {
   def apply(sys: System)(info: HeaderInfo, generation: sys.Generation, evaluation: sys.Evaluation,

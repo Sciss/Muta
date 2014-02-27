@@ -1,8 +1,17 @@
-package de.sciss.muta
+/*
+ *  Generation.scala
+ *  (Muta)
+ *
+ *  Copyright (c) 2013-2014 Hanns Holger Rutz. All rights reserved.
+ *
+ *	This software is published under the GNU General Public License v2+
+ *
+ *
+ *	For further information, please contact Hanns Holger Rutz at
+ *	contact@sciss.de
+ */
 
-//case class Generation[S <: System[S]](size: Int = 100, global: S#Global, seed: Int = 0) {
-//  // def wholeDur = Rational(duration, 4)
-//}
+package de.sciss.muta
 
 trait Generation[Chromosome, Global] extends (util.Random => Chromosome) {
   def size: Int

@@ -12,9 +12,9 @@ This project is in early stage and experimental / in flux.
 
 This project currently compiles against Scala 2.10 using sbt 0.13.
 
-To use the library in your project (currently _not yet_ published):
+To use the library in your project:
 
     "de.sciss" %% "muta" % v
 
-The current version `v` is `"0.3.2+"`
+The current stable version `v` is `"0.3.2+"`. The current snapshot version is `"0.4.+"`.
 

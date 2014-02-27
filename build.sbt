@@ -1,6 +1,6 @@
 name          := "Muta"
 
-version       := "0.3.2"
+version       := "0.4.0-SNAPSHOT"
 
 organization  := "de.sciss"
 
@@ -17,16 +17,16 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "de.sciss" %% "fileutil"         % "1.0.+",    // Easy file representation
-  "de.sciss" %% "desktop"          % "0.3.+",    // Application framework
-  "de.sciss" %% "treetable-scala"  % "1.3.1+",   // Treetable widget
-  "de.sciss" %% "guiflitz"         % "0.1.+",    // Automatic configuration GUIs
+  "de.sciss" %% "fileutil"         % "1.1.+",    // Easy file representation
+  "de.sciss" %% "desktop"          % "0.4.2+",   // Application framework
+  "de.sciss" %% "treetable-scala"  % "1.3.4+",   // Treetable widget
+  "de.sciss" %% "guiflitz"         % "0.3.+",    // Automatic configuration GUIs
   "de.sciss" %% "processor"        % "0.2.+",    // Asynchronous iteration
   "de.sciss" %% "rating-scala"     % "0.1.1+",   // Rating widget
   "de.sciss" %% "play-json-sealed" % "0.1.+"     // JSON serialization
 )
 
-retrieveManaged := true
+// retrieveManaged := true
 
 scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
 

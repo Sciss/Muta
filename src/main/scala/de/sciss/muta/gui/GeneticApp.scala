@@ -1,8 +1,21 @@
+/*
+ *  GeneticApp.scala
+ *  (Muta)
+ *
+ *  Copyright (c) 2013-2014 Hanns Holger Rutz. All rights reserved.
+ *
+ *	This software is published under the GNU General Public License v2+
+ *
+ *
+ *	For further information, please contact Hanns Holger Rutz at
+ *	contact@sciss.de
+ */
+
 package de.sciss.muta
 package gui
 
-import de.sciss.desktop.impl.SwingApplicationImpl
-import de.sciss.desktop.{FileDialog, KeyStrokes, Menu}
+import de.sciss.desktop.impl.{LogWindowImpl, WindowHandlerImpl, SwingApplicationImpl}
+import de.sciss.desktop.{Desktop, WindowHandler, FileDialog, KeyStrokes, Menu}
 import java.awt.event.KeyEvent
 import javax.swing.UIManager
 
@@ -14,20 +27,26 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
 
   type Document = Unit // gui.Document
 
-  protected def useNimbus = false
+  protected def useNimbus         = Desktop.isLinux
+  protected def useInternalFrames = !Desktop.isMac
 
   // protected def newDocument(): Document
 
   /** Override this if you wish to be informed about document frames opening. */
   protected def configureDocumentFrame(frame: DocumentFrame[S]) = ()
 
+  override lazy val windowHandler: WindowHandler = new WindowHandlerImpl(this, menuFactory) {
+    override def usesInternalFrames = app.useInternalFrames
+  }
+
   override protected def init() = {
     val nimbusOption = if (!useNimbus) None else UIManager.getInstalledLookAndFeels.collectFirst {
       case info if info.getName == "Nimbus" => info.getClassName
     }
     nimbusOption.foreach(UIManager.setLookAndFeel)
-
-    LogWindow(this)
+    new LogWindowImpl {
+      def handler: WindowHandler = app.windowHandler
+    }
   }
 
   /** Override this to enforce a specific row height in the genome tables. The default value of `-1`

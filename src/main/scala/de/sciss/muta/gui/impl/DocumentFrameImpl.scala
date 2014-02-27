@@ -1,3 +1,16 @@
+/*
+ *  DocumentFrameImpl.scala
+ *  (Muta)
+ *
+ *  Copyright (c) 2013-2014 Hanns Holger Rutz. All rights reserved.
+ *
+ *	This software is published under the GNU General Public License v2+
+ *
+ *
+ *	For further information, please contact Hanns Holger Rutz at
+ *	contact@sciss.de
+ */
+
 package de.sciss.muta.gui
 package impl
 
@@ -5,9 +18,9 @@ import scala.swing.{CheckBox, Label, Action, SplitPane, FlowPanel, Orientation, 
 import Swing._
 import de.sciss.desktop.impl.WindowImpl
 import de.sciss.desktop.{FileDialog, Window}
-import javax.swing.{SwingConstants, JCheckBox, SpinnerNumberModel}
+import javax.swing._
 import de.sciss.treetable.{j, AbstractTreeModel, TreeColumnModel, TreeTable}
-import java.awt.EventQueue
+import java.awt.{GraphicsEnvironment, EventQueue}
 import collection.immutable.{IndexedSeq => Vec}
 import de.sciss.swingplus.Spinner
 import de.sciss.treetable.j.{DefaultTreeTableCellEditor, DefaultTreeTableSorter}
@@ -29,6 +42,17 @@ import play.api.libs.json.{Format, JsSuccess, JsError, JsResult, Reads, JsBoolea
 import scala.util.{Success, Failure, Try}
 import scala.util.control.NonFatal
 import de.sciss.play.json.AutoFormat
+import scala.util.Failure
+import play.api.libs.json.JsBoolean
+import scala.Some
+import scala.swing.event.ButtonClicked
+import scala.swing.event.KeyTyped
+import play.api.libs.json.JsArray
+import play.api.libs.json.JsSuccess
+import play.api.libs.json.JsNumber
+import scala.util.Success
+import de.sciss.muta.HeaderInfo
+import play.api.libs.json.JsObject
 
 final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) extends DocumentFrame[S] { outer =>
   type S1 = S
@@ -591,7 +615,6 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   object window extends WindowImpl { me =>
     def handler = app.windowHandler
-    def style   = Window.Regular
     contents    = ggSplit
 
     def saveDialog(): Option[File] = {
@@ -667,6 +690,25 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
     def open(): Unit = {
       pack()
+      val w = window.component.peer
+      val gc = w.getGraphicsConfiguration
+      if (gc != null) {
+        val r1    = gc.getBounds
+        val r2    = w . getBounds
+        val hOver = r2.x + r2.width  > r1.x + r1.width
+        val vOver = r2.y + r2.height > r1.y + r1.height
+        if (hOver || vOver) {
+          if (hOver) {
+            r2.x      = r1.x
+            r2.width  = r1.width
+          }
+          if (vOver) {
+            r2.y      = r1.y
+            r2.height = r1.height
+          }
+          w.setBounds(r2)
+        }
+      }
       front()
     }
 
