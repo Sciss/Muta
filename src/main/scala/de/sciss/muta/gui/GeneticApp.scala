@@ -4,7 +4,7 @@
  *
  *  Copyright (c) 2013-2014 Hanns Holger Rutz. All rights reserved.
  *
- *	This software is published under the GNU General Public License v2+
+ *	This software is published under the GNU Lesser General Public License v3+
  *
  *
  *	For further information, please contact Hanns Holger Rutz at
@@ -18,6 +18,8 @@ import de.sciss.desktop.impl.{LogWindowImpl, WindowHandlerImpl, SwingApplication
 import de.sciss.desktop.{Desktop, WindowHandler, FileDialog, KeyStrokes, Menu}
 import java.awt.event.KeyEvent
 import javax.swing.UIManager
+
+import scala.swing.event.Key
 
 /** The stub to create a genetic algorithm swing application. Usually you will have an object
   * extending this class, which is then the main swing entry point.
@@ -69,15 +71,14 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
   protected lazy val menuFactory = {
     import Menu._
     import KeyStrokes._
-    import KeyEvent._
     Root().add(
       Group("file", "File").add(
-        Item("new")("New" -> (menu1 + VK_N)) {
+        Item("new")("New" -> (menu1 + Key.N)) {
           val fr = mkDocFrame()
           fr.open()
         }
       ).add(
-        Item("open")("Open..." -> (menu1 + VK_O)) {
+        Item("open")("Open..." -> (menu1 + Key.O)) {
           val dlg = FileDialog.open(title = "Open Document")
           dlg.show(None).foreach { file =>
             val fr = mkDocFrame()
@@ -88,7 +89,7 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
       ).addLine()
       .add(
         Group("import", "Import").add(
-          Item("settings", proxy("Algorithm Settings..." -> (menu1 + alt + VK_O)))
+          Item("settings", proxy("Algorithm Settings..." -> (menu1 + alt + Key.O)))
         )
       ).add(
         Group("export", "Export")
@@ -96,19 +97,19 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
           //          Item("lily", proxy("Selection As Lilypond Score..." -> (menu1 + shift + VK_S)))
           //        )
           .add(
-          Item("settings", proxy("Algorithm Settings..." -> (menu1 + alt + VK_S)))
+          Item("settings", proxy("Algorithm Settings..." -> (menu1 + alt + Key.S)))
         )
         .add(
-          Item("table", proxy("Selection As PDF Table..." -> (menu1 + VK_T)))
+          Item("table", proxy("Selection As PDF Table..." -> (menu1 + Key.T)))
         )
       ).addLine().add(
-        Item("save", proxy("Save" -> (menu1 + VK_S)))
+        Item("save", proxy("Save" -> (menu1 + Key.S)))
       ).add(
-        Item("save-as", proxy("Save As..." -> (menu1 + shift + VK_S)))
+        Item("save-as", proxy("Save As..." -> (menu1 + shift + Key.S)))
       )
     ).add(
       Group("window", "Window").add(
-        Item("pack", proxy("Pack" -> (menu1 + VK_P)))
+        Item("pack", proxy("Pack" -> (menu1 + Key.P)))
       )
     )
   }

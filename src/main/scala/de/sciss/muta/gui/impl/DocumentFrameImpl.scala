@@ -4,7 +4,7 @@
  *
  *  Copyright (c) 2013-2014 Hanns Holger Rutz. All rights reserved.
  *
- *	This software is published under the GNU General Public License v2+
+ *	This software is published under the GNU Lesser General Public License v3+
  *
  *
  *	For further information, please contact Hanns Holger Rutz at
@@ -782,7 +782,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
         val sq  = generation(r)
         val n   = new Node(index = idx, chromosome = sq)
         checkAborted()
-        progress((idx + 1).toFloat / pop)
+        progress = (idx + 1).toFloat / pop
         n
       }
   }
@@ -798,7 +798,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
         val itOut = stepBreed(itIn)
         stepEval(itOut)
         val f = (idx + 1).toFloat / num
-        progress(f)
+        progress = f
         checkAborted()
         itOut
       }

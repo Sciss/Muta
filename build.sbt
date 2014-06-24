@@ -1,34 +1,34 @@
 name          := "Muta"
 
-version       := "0.4.0"
+version       := "0.4.1"
 
 organization  := "de.sciss"
 
-scalaVersion  := "2.10.3"
+scalaVersion  := "2.11.1"
+
+crossScalaVersions := Seq("2.11.1", "2.10.4")
 
 description   := "Genetic Algorithms"
 
 homepage      := Some(url("https://github.com/Sciss/" + name.value))
 
-licenses      := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
+licenses      := Seq("LGPL v3+" -> url("http://www.gnu.org/licenses/lgpl-3.0.txt"))
 
-resolvers ++= Seq(
-  "Typesafe Releases" at "https://repo.typesafe.com/typesafe/releases/"
-)
+resolvers     += "Typesafe Releases" at "https://repo.typesafe.com/typesafe/releases/"
 
 libraryDependencies ++= Seq(
-  "de.sciss" %% "fileutil"         % "1.1.+",    // Easy file representation
-  "de.sciss" %% "desktop"          % "0.4.2+",   // Application framework
-  "de.sciss" %% "treetable-scala"  % "1.3.4+",   // Treetable widget
-  "de.sciss" %% "guiflitz"         % "0.3.+",    // Automatic configuration GUIs
-  "de.sciss" %% "processor"        % "0.2.+",    // Asynchronous iteration
-  "de.sciss" %% "rating-scala"     % "0.1.1+",   // Rating widget
-  "de.sciss" %% "play-json-sealed" % "0.1.+"     // JSON serialization
+  "de.sciss" %% "fileutil"         % "1.1.1",    // Easy file representation
+  "de.sciss" %% "desktop"          % "0.5.3",    // Application framework
+  "de.sciss" %% "treetable-scala"  % "1.3.7",    // Treetable widget
+  "de.sciss" %% "guiflitz"         % "0.3.2",    // Automatic configuration GUIs
+  "de.sciss" %% "processor"        % "0.3.0",    // Asynchronous iteration
+  "de.sciss" %% "rating-scala"     % "0.1.1",    // Rating widget
+  "de.sciss" %% "play-json-sealed" % "0.2.0"     // JSON serialization
 )
 
 // retrieveManaged := true
 
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture")
 
 // ---- publishing ----
 
