@@ -1,12 +1,12 @@
 name          := "Muta"
 
-version       := "0.4.1"
+version       := "0.5.0-SNAPSHOT"
 
 organization  := "de.sciss"
 
-scalaVersion  := "2.11.1"
+scalaVersion  := "2.11.5"
 
-crossScalaVersions := Seq("2.11.1", "2.10.4")
+crossScalaVersions := Seq("2.11.5", "2.10.4")
 
 description   := "Genetic Algorithms"
 
@@ -18,10 +18,10 @@ resolvers     += "Typesafe Releases" at "https://repo.typesafe.com/typesafe/rele
 
 libraryDependencies ++= Seq(
   "de.sciss" %% "fileutil"         % "1.1.1",    // Easy file representation
-  "de.sciss" %% "desktop"          % "0.5.3",    // Application framework
+  "de.sciss" %% "desktop"          % "0.6.0",    // Application framework
   "de.sciss" %% "treetable-scala"  % "1.3.7",    // Treetable widget
-  "de.sciss" %% "guiflitz"         % "0.3.2",    // Automatic configuration GUIs
-  "de.sciss" %% "processor"        % "0.3.0",    // Asynchronous iteration
+  "de.sciss" %% "guiflitz"         % "0.4.0",    // Automatic configuration GUIs
+  "de.sciss" %% "processor"        % "0.4.0-SNAPSHOT",    // Asynchronous iteration
   "de.sciss" %% "rating-scala"     % "0.1.1",    // Rating widget
   "de.sciss" %% "play-json-sealed" % "0.2.0"     // JSON serialization
 )
