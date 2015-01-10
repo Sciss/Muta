@@ -13,4 +13,4 @@
 
 package de.sciss.muta
 
-trait Evaluation[Chromosome] extends (Chromosome => Double)
+trait Evaluation[Chromosome, Global] extends ((Chromosome, Global) => Double)

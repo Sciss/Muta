@@ -13,10 +13,10 @@ case class SelectTrunc(size: SelectionSize = SelectionPercent())
   extends impl.SelectionTruncationImpl[TestSys.Chromosome] with SelectionImpl
 
 
-sealed trait EvaluationImpl extends muta.Evaluation[TestSys.Chromosome]
+sealed trait EvaluationImpl extends muta.Evaluation[TestSys.Chromosome, TestSys.Global]
 
 case class EvalMatchConst(target: Boolean = false) extends EvaluationImpl {
-  def apply(sq: TestSys.Chromosome): Double = sq.count(_ == target).toDouble / sq.size
+  def apply(sq: TestSys.Chromosome, g: TestSys.Global): Double = sq.count(_ == target).toDouble / sq.size
 }
 
 sealed trait BreedingFunctionImpl extends muta.BreedingFunction[TestSys.Chromosome, TestSys.Global]

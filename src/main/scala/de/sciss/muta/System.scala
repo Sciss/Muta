@@ -29,7 +29,7 @@ trait System {
   /** A selected genome is an evaluated genome with a selection flag for each chromosome. */
   type GenomeSel  = Vec[(Chromosome, Double, Boolean)]
 
-  type Evaluation <: muta.Evaluation[Chromosome]
+  type Evaluation <: muta.Evaluation[Chromosome, Global]
 
   def defaultEvaluation: Evaluation
 

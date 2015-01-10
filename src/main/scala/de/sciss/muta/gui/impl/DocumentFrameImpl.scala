@@ -335,11 +335,12 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   }
 
   def stepEval(genome: Vec[Node]): Unit = {
-    val fun = evaluation
-    var min = Double.MaxValue
-    var max = Double.MinValue
+    val fun   = evaluation
+    val glob  = generation.global
+    var min   = Double.MaxValue
+    var max   = Double.MinValue
     genome.foreach { node =>
-      val f = fun(node.chromosome)
+      val f = fun(node.chromosome, glob)
       node.fitness = f
       if (f < min) min = f
       if (f > max) max = f
