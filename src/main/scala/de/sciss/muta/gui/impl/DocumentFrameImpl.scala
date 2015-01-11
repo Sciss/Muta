@@ -27,7 +27,7 @@ import de.sciss.treetable.j.{DefaultTreeTableCellEditor, DefaultTreeTableSorter}
 import de.sciss.file._
 import de.sciss.processor.impl.ProcessorImpl
 import de.sciss.processor.Processor
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Future, ExecutionContext}
 import de.sciss.guiflitz.AutoView
 import de.sciss.muta._
 import de.sciss.muta.gui.{ProgressIcon, SettingsFrame, GeneticApp}
@@ -334,7 +334,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     generation  = s.generation
   }
 
-  def stepEval(genome: Vec[Node]): Unit = {
+  def stepEval(genome: Vec[Node] /*, progress: Float => Unit = _ => () */): Unit = {
     val fun   = evaluation
     val glob  = generation.global
     var min   = Double.MaxValue
@@ -467,9 +467,15 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
       val evalOpt = sys.evaluationViewOption.map { evalViewFun =>
         val ggEval = Button("Evaluate") {
-          stepEval(currentTable)
-          tmTop.refreshNodes()
-          mainTable.repaint() // XXX TODO should not be necessary
+          import ExecutionContext.Implicits.global
+          Future {
+            stepEval(currentTable)
+          } .onSuccess {
+            case _ => defer {
+              tmTop.refreshNodes()
+              mainTable.repaint() // XXX TODO should not be necessary
+            }
+          }
         }
         ggEval.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
         ggEval.peer.putClientProperty("JButton.segmentPosition", "first")
