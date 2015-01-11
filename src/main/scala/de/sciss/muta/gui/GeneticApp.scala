@@ -14,10 +14,10 @@
 package de.sciss.muta
 package gui
 
-import de.sciss.desktop.impl.{LogWindowImpl, WindowHandlerImpl, SwingApplicationImpl}
-import de.sciss.desktop.{Desktop, WindowHandler, FileDialog, KeyStrokes, Menu}
-import java.awt.event.KeyEvent
 import javax.swing.UIManager
+
+import de.sciss.desktop.impl.{LogWindowImpl, SwingApplicationImpl, WindowHandlerImpl}
+import de.sciss.desktop.{Desktop, FileDialog, KeyStrokes, Menu, WindowHandler}
 
 import scala.swing.event.Key
 
@@ -69,10 +69,10 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
   }
 
   protected lazy val menuFactory = {
-    import Menu._
     import KeyStrokes._
-    Root().add(
-      Group("file", "File").add(
+    import Menu._
+    val itQuit = Item.Quit(app)
+    val mFile = Group("file", "File").add(
         Item("new")("New" -> (menu1 + Key.N)) {
           val fr = mkDocFrame()
           fr.open()
@@ -107,7 +107,9 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
       ).add(
         Item("save-as", proxy("Save As..." -> (menu1 + shift + Key.S)))
       )
-    ).add(
+
+    if (itQuit.visible) mFile.addLine().add(itQuit)
+    Root().add(mFile).add(
       Group("window", "Window").add(
         Item("pack", proxy("Pack" -> (menu1 + Key.P)))
       )
