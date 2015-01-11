@@ -19,23 +19,21 @@ resolvers     += "Typesafe Releases" at "https://repo.typesafe.com/typesafe/rele
 libraryDependencies ++= Seq(
   "de.sciss" %% "fileutil"         % "1.1.1",    // Easy file representation
   "de.sciss" %% "desktop"          % "0.6.0",    // Application framework
-  "de.sciss" %% "treetable-scala"  % "1.3.7",    // Treetable widget
-  "de.sciss" %% "guiflitz"         % "0.4.0",    // Automatic configuration GUIs
-  "de.sciss" %% "processor"        % "0.4.0-SNAPSHOT",    // Asynchronous iteration
+  "de.sciss" %% "treetable-scala"  % "1.3.7",    // Tree-table widget
+  "de.sciss" %% "guiflitz"         % "0.5.0",    // Automatic configuration GUIs
+  "de.sciss" %% "processor"        % "0.4.0",    // Asynchronous iteration
   "de.sciss" %% "rating-scala"     % "0.1.1",    // Rating widget
   "de.sciss" %% "play-json-sealed" % "0.2.0"     // JSON serialization
 )
 
-// retrieveManaged := true
-
-scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture")
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture", "-encoding", "utf8")
 
 // ---- publishing ----
 
 publishMavenStyle := true
 
 publishTo :=
-  Some(if (version.value endsWith "-SNAPSHOT")
+  Some(if (isSnapshot.value)
     "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
   else
     "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
