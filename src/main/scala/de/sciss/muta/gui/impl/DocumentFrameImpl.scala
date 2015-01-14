@@ -11,55 +11,41 @@
  *	contact@sciss.de
  */
 
-package de.sciss.muta.gui
+package de.sciss.muta
+package gui
 package impl
 
-import scala.swing.{CheckBox, Label, Action, SplitPane, FlowPanel, Orientation, Swing, BoxPanel, BorderPanel, ScrollPane, Button}
-import Swing._
+import java.awt.EventQueue
+import javax.swing.{SpinnerNumberModel, JCheckBox, SwingConstants}
+
 import de.sciss.desktop.impl.WindowImpl
-import de.sciss.desktop.{FileDialog, Window}
-import javax.swing._
-import de.sciss.treetable.{j, AbstractTreeModel, TreeColumnModel, TreeTable}
-import java.awt.{GraphicsEnvironment, EventQueue}
-import collection.immutable.{IndexedSeq => Vec}
-import de.sciss.swingplus.Spinner
-import de.sciss.treetable.j.{DefaultTreeTableCellEditor, DefaultTreeTableSorter}
+import de.sciss.desktop.{DialogSource, FileDialog, Window}
 import de.sciss.file._
-import de.sciss.processor.impl.ProcessorImpl
-import de.sciss.processor.Processor
-import scala.concurrent.{Future, ExecutionContext}
 import de.sciss.guiflitz.AutoView
-import de.sciss.muta._
-import de.sciss.muta.gui.{ProgressIcon, SettingsFrame, GeneticApp}
-import scala.annotation.switch
+import de.sciss.processor.Processor
+import de.sciss.processor.impl.ProcessorImpl
 import de.sciss.rating.Rating
 import de.sciss.rating.j.DefaultRatingModel
-import scala.swing.event.ButtonClicked
-import scala.swing.event.KeyTyped
-import de.sciss.muta.HeaderInfo
-import collection.breakOut
-import play.api.libs.json.{Format, JsSuccess, JsError, JsResult, Reads, JsBoolean, JsNumber, JsValue, JsObject, JsArray, Writes, Json}
-import scala.util.{Success, Failure, Try}
-import scala.util.control.NonFatal
-import de.sciss.play.json.AutoFormat
-import scala.util.Failure
-import play.api.libs.json.JsBoolean
-import scala.Some
-import scala.swing.event.ButtonClicked
-import scala.swing.event.KeyTyped
-import play.api.libs.json.JsArray
-import play.api.libs.json.JsSuccess
-import play.api.libs.json.JsNumber
-import scala.util.Success
-import de.sciss.muta.HeaderInfo
-import play.api.libs.json.JsObject
+import de.sciss.swingplus.Spinner
+import de.sciss.treetable.j.{DefaultTreeTableCellEditor, DefaultTreeTableSorter}
+import de.sciss.treetable.{AbstractTreeModel, TreeColumnModel, TreeTable, j}
+import play.api.libs.json.{JsArray, JsBoolean, JsError, JsNumber, JsObject, JsResult, JsSuccess, JsValue, Json, Reads, Writes}
+
+import scala.annotation.switch
+import scala.collection.breakOut
+import scala.collection.immutable.{IndexedSeq => Vec}
+import scala.concurrent.{ExecutionContext, Future}
+import scala.swing.Swing._
+import scala.swing.event.{ButtonClicked, KeyTyped}
+import scala.swing.{Action, BorderPanel, BoxPanel, Button, CheckBox, FlowPanel, Label, Orientation, ScrollPane, SplitPane}
+import scala.util.{Failure, Success, Try}
 
 final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) extends DocumentFrame[S] { outer =>
   type S1 = S
 
   val system: S1 = application.system
 
-  import outer.{system => sys, application => app}
+  import outer.{application => app, system => sys}
 
   private type SysSettings = Settings { type S = sys.type }
 
@@ -71,6 +57,8 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
     override def toString = s"Node(index = $index, chromosome = $chromosome, fitness = $fitness, selected = $selected)"
   }
+
+  import ExecutionContext.Implicits.global
 
   var random      = sys.rng(0L)
   var evaluation: sys.Evaluation  = sys.defaultEvaluation  // EvalWindowed()
@@ -91,9 +79,6 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     res
   }
   lazy val pGen        = {
-    // import system.globalTypeTag
-    // import system.generationTypeTag
-    // AutoView(system.defaultGeneration, avCfg)
     sys.generationView(sys.defaultGeneration, avCfg)
   }
   //    form"""   Duration:|$ggDur |\u2669
@@ -145,17 +130,17 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   } else None
 
   def adjustColumns(tt: TreeTable[_, _]): Unit = {
-    val tabcm = tt.peer.getColumnModel
-    val sz    = tabcm.getColumnCount
-    tabcm.getColumn(0).setPreferredWidth( 48)
-    tabcm.getColumn(0).setMaxWidth      ( 48)
-    tabcm.getColumn(1).setPreferredWidth(768)
+    val tabCM = tt.peer.getColumnModel
+    val sz    = tabCM.getColumnCount
+    tabCM.getColumn(0).setPreferredWidth( 48)
+    tabCM.getColumn(0).setMaxWidth      ( 48)
+    tabCM.getColumn(1).setPreferredWidth(768)
     if (sz >= 4) {
       val fitWidth = rating.fold(72)(_.preferredSize.width + 48)  // account for table column sort-icon width!
-      tabcm.getColumn(2).setPreferredWidth(fitWidth)
-      tabcm.getColumn(2).setMaxWidth      (128)
-      tabcm.getColumn(3).setPreferredWidth( 56) // XXX TODO: should be rendered as checkbox not string
-      tabcm.getColumn(3).setMaxWidth      ( 56) // XXX TODO: should be rendered as checkbox not string
+      tabCM.getColumn(2).setPreferredWidth(fitWidth)
+      tabCM.getColumn(2).setMaxWidth      (128)
+      tabCM.getColumn(3).setPreferredWidth( 56) // XXX TODO: should be rendered as checkbox not string
+      tabCM.getColumn(3).setMaxWidth      ( 56) // XXX TODO: should be rendered as checkbox not string
     }
   }
 
@@ -205,8 +190,6 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
     private lazy val wrap = new Label { override lazy val peer = renderer }
     private val check = new CheckBox()
-    // check.peer.setUI(new MetalCheckBoxUI) // no funciona: don't want glossy stuff for pdf export etc.
-
 
     override def getTreeTableCellRendererComponent(treeTable: j.TreeTable, value: Any, selected: Boolean,
                                                    hasFocus: Boolean, row: Int, column: Int,
@@ -218,7 +201,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       try {
         super.getTreeTableCellRendererComponent(treeTable, value, selected, hasFocus, row, column)
       } catch {
-        case _: NullPointerException => // Ssssssuckers
+        case _: NullPointerException => // Suckers
       }
       val c1 = treeTable.convertColumnIndexToModel(column)
       setHorizontalAlignment(if (c1 == 0) SwingConstants.RIGHT else SwingConstants.LEFT)
@@ -334,21 +317,22 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     generation  = s.generation
   }
 
-  def stepEval(genome: Vec[Node] /*, progress: Float => Unit = _ => () */): Unit = {
-    val fun   = evaluation
-    val glob  = generation.global
+  def stepEval(fun: sys.Evaluation, glob: sys.Global, genome: Vec[Node], progress: Float => Unit = _ => ()): Unit = {
     var min   = Double.MaxValue
     var max   = Double.MinValue
-    genome.foreach { node =>
+    val sz    = genome.size
+    genome.zipWithIndex.foreach { case (node, idx) =>
       val f = fun(node.chromosome, glob)
       node.fitness = f
       if (f < min) min = f
       if (f > max) max = f
+      progress((idx + 1).toFloat / sz)
     }
     // normalize
     if (max > min) {
       val off     = -min
       val scale   = 1.0/(max - min)
+      // XXX TODO -- should not do this on the processing thread
       genome.foreach { node =>
         node.fitness = (node.fitness + off) * scale
       }
@@ -358,6 +342,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   def stepSelect(genome: Vec[Node]): Unit = {
     val fun       = selection
     val selected  = fun(genome.map(node => (node.chromosome, node.fitness)), random).toSet
+    // XXX TODO -- should not do this on the processing thread
     genome.foreach { node =>
       node.selected = selected.contains(node.chromosome)
     }
@@ -413,69 +398,75 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     but
   }
 
+  private def mkProcButton(label: String)(mkProc: => Processor[Any] with Processor.Prepared): Button =
+    new Button(label) {
+      var proc      = Option.empty[Processor[Any]]
+      val progIcon  = new ProgressIcon(33)
+
+      listenTo(this)
+      reactions += {
+        case ButtonClicked(_) =>
+          proc match {
+            case Some(p) => p.abort()
+            case _ =>
+              val p   = mkProc
+              proc    = Some(p)
+              p.addListener {
+                case prog @ Processor.Progress(_, _) => defer {
+                  progIcon.value = prog.toInt
+                  repaint()
+                }
+              }
+              p.start()
+              text            = "\u2716"
+              progIcon.value  = 0
+              icon            = progIcon
+              p.onComplete {
+                case res => defer {
+                  icon  = EmptyIcon
+                  text  = label
+                  proc  = None
+                  res match {
+                    case Failure(ex) => DialogSource.Exception(ex -> label).show(Some(outer.window))
+                    case _ =>
+                  }
+                }
+              }
+          }
+      }
+
+      peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
+      peer.putClientProperty("JButton.segmentPosition", "first")
+      preferredSize = (84, preferredSize.height)
+      minimumSize   = preferredSize
+      maximumSize   = preferredSize
+    }
+
   val pButtons = new FlowPanel {
     contents += new BoxPanel(Orientation.Horizontal) {
-      val ggGen = new Button("Generate") {
-        var proc      = Option.empty[GenProc]
-        val progIcon  = new ProgressIcon(33)
-
-        listenTo(this)
-        reactions += {
-          case ButtonClicked(_) =>
-            proc match {
-              case Some(p) => p.abort()
-              case _ =>
-                val random  = sys.rng(generation.seed)
-                val pop     = generation.size
-                val p       = new GenProc(pop, random)
-                proc    = Some(p)
-                p.addListener {
-                  case prog @ Processor.Progress(_, _) => defer {
-                    progIcon.value = prog.toInt
-                    repaint()
-                  }
-                }
-                import ExecutionContext.Implicits.global
-                p.start()
-                text            = "\u2716"
-                progIcon.value  = 0
-                icon            = progIcon
-                p.onComplete {
-                  case _ => defer {
-                    icon  = EmptyIcon
-                    text  = "Generate"
-                    proc  = None
-                  }
-                }
-                p.onSuccess {
-                  case nodes => defer {
-                    tmTop.updateNodes(nodes)
-                    iterations = 0
-                  }
-                }
-            }
+      val ggGen = mkProcButton("Generate") {
+        val p = new GenProc(generation)
+        p.onSuccess {
+          case nodes => defer {
+            tmTop.updateNodes(nodes)
+            iterations = 0
+          }
         }
-
-        peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
-        peer.putClientProperty("JButton.segmentPosition", "first")
-        preferredSize = (84, preferredSize.height)
-        minimumSize   = preferredSize
-        maximumSize   = preferredSize
+        p
       }
 
       val ggGenSettings = mkSettingsButton[sys.Generation]("Generation")(sys.generationView)(generation)(generation = _)
 
       val evalOpt = sys.evaluationViewOption.map { evalViewFun =>
-        val ggEval = Button("Evaluate") {
-          import ExecutionContext.Implicits.global
-          Future {
-            stepEval(currentTable)
-          } .onSuccess {
+        val ggEval = mkProcButton("Evaluate") {
+          val s = new EvalProc(evaluation, generation.global, currentTable)
+          s.onSuccess {
             case _ => defer {
               tmTop.refreshNodes()
               mainTable.repaint() // XXX TODO should not be necessary
             }
           }
+          s
         }
         ggEval.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
         ggEval.peer.putClientProperty("JButton.segmentPosition", "first")
@@ -513,53 +504,18 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       val mNumIter  = new SpinnerNumberModel(10, 1, 10000, 1)
       val ggNumIter = new Spinner(mNumIter)
       ggNumIter.tooltip = "Number of iterations to perform at once"
-      val ggIter = new Button("Iterate") { // \u238C \u260D \u267B
-        var proc      = Option.empty[IterProc]
-        val progIcon  = new ProgressIcon(33)
-
-        listenTo(this)
-        reactions += {
-          case ButtonClicked(_) =>
-            proc match {
-              case Some(p) => p.abort()
-              case _ =>
-                val num = mNumIter.getNumber.intValue()
-                val in  = currentTable
-                val p   = new IterProc(in, num)
-                proc    = Some(p)
-                p.addListener {
-                  case prog @ Processor.Progress(_, _) => defer {
-                    progIcon.value = prog.toInt
-                    repaint()
-                  }
-                }
-                import ExecutionContext.Implicits.global
-                p.start()
-                text            = "\u2716"
-                progIcon.value  = 0
-                icon            = progIcon
-                p.onComplete {
-                  case _ => defer {
-                    icon  = EmptyIcon
-                    text  = "Iterate"
-                    proc  = None
-                  }
-                }
-                p.onSuccess {
-                  case out => defer {
-                    tmTop.updateNodes(out)
-                    iterations += num
-                    tmBot.updateNodes(Vec.empty)
-                  }
-                }
-            }
+      val ggIter = mkProcButton("Iterate") {
+        val num = mNumIter.getNumber.intValue()
+        val in  = currentTable
+        val p   = new IterProc(in, num, generation.global, evaluation)
+        p.onSuccess {
+          case out => defer {
+            tmTop.updateNodes(out)
+            iterations += num
+            tmBot.updateNodes(Vec.empty)
+          }
         }
-
-        peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
-        peer.putClientProperty("JButton.segmentPosition", "last")
-        preferredSize = (72, preferredSize.height)
-        minimumSize   = preferredSize
-        maximumSize   = preferredSize
+        p
       }
 
       contents ++= Seq(            ggGen  , ggGenSettings)
@@ -734,11 +690,11 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
                   val nodes: Vec[Node] = nj.zipWithIndex.map {
                     case (JsObject(nfj), idx) =>
                       val m1                = nfj.toMap
-                      val chromoj           = m1("chromosome")
-                      val chromo            = sys.chromosomeFormat.reads(chromoj).get
+                      val chromosomeJ       = m1("chromosome")
+                      val chromosome        = sys.chromosomeFormat.reads(chromosomeJ).get
                       val JsNumber(fitNum)  = m1("fitness")
                       val JsBoolean(sel)    = m1("selected")
-                      new Node(index = idx, chromosome = chromo, fitness = fitNum.toDouble, selected = sel)
+                      new Node(index = idx, chromosome = chromosome, fitness = fitNum.toDouble, selected = sel)
 
                     case (other, _) => scala.sys.error(s"Not a JSON object $other")
                   } (breakOut)
@@ -783,27 +739,44 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   def bindMenu(path: String, action: Action): Unit = window.bindMenu2(path, action)
 
-  class GenProc(pop: Int, r: util.Random) extends ProcessorImpl[Vec[Node], GenProc] {
-    protected def body(): Vec[Node] =
+  class GenProc(gen: sys.Generation)
+    extends ProcessorImpl[Vec[Node], Processor[Vec[Node]]] with Processor[Vec[Node]] {
+
+    protected def body(): Vec[Node] = {
+      val pop = gen.size
+      val r   = sys.rng(gen.seed)
       Vec.tabulate(pop) { idx =>
-        val sq  = generation(r)
+        val sq  = gen(r)
         val n   = new Node(index = idx, chromosome = sq)
         checkAborted()
         progress = (idx + 1).toFloat / pop
         n
       }
+    }
   }
 
-  class IterProc(in: Vec[Node], num: Int) extends ProcessorImpl[Vec[Node], IterProc] {
+  class EvalProc(eval: sys.Evaluation, glob: sys.Global, genome: Vec[Node])
+    extends ProcessorImpl[Unit, Processor[Unit]] with Processor[Unit] {
+
+    protected def body(): Unit =
+      stepEval(eval, glob, genome, p => {
+        checkAborted()
+        progress = p
+      })
+  }
+
+  class IterProc(in: Vec[Node], num: Int, glob: sys.Global, eval: sys.Evaluation)
+    extends ProcessorImpl[Vec[Node], Processor[Vec[Node]]] with Processor[Vec[Node]] {
+
     protected def body(): Vec[Node] = {
-      // we want to stop the iteration with evaluation, so that the fitnesses are shown in the top pane
+      // we want to stop the iteration with evaluation, so that the fitness values are shown in the top pane
       // ; ensure that initially the nodes have been evaluation
-      if (in.exists(_.fitness.isNaN)) stepEval(in)
+      if (in.exists(_.fitness.isNaN)) stepEval(eval, glob, in)
       checkAborted()
       val out = (in /: (0 until num)) { (itIn, idx) =>
         stepSelect(itIn)
         val itOut = stepBreed(itIn)
-        stepEval(itOut)
+        stepEval(eval, glob, itOut)
         val f = (idx + 1).toFloat / num
         progress = f
         checkAborted()
