@@ -29,7 +29,7 @@ import de.sciss.rating.j.DefaultRatingModel
 import de.sciss.swingplus.Spinner
 import de.sciss.treetable.j.{DefaultTreeTableCellEditor, DefaultTreeTableSorter}
 import de.sciss.treetable.{AbstractTreeModel, TreeColumnModel, TreeTable, j}
-import play.api.libs.json.{JsArray, JsBoolean, JsError, JsNumber, JsObject, JsResult, JsSuccess, JsValue, Json, Reads, Writes}
+import play.api.libs.json.{JsPath, JsArray, JsBoolean, JsError, JsNumber, JsObject, JsResult, JsSuccess, JsValue, Json, Reads, Writes}
 
 import scala.annotation.switch
 import scala.collection.breakOut
@@ -589,11 +589,10 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       // Note: cannot use auto formats here, because node indices are implied from JsArray indices
       implicit val documentW = Writes[Document] { case (nodes, settings) =>
         JsObject(settingsFieldsToJson() :+ ("genome" -> JsArray(nodes.map { n =>
-          JsObject(Seq(
-            "chromosome" -> sys.chromosomeFormat.writes(n.chromosome),
-            "fitness"    -> JsNumber(n.fitness),
-            "selected"   -> JsBoolean(n.selected)
-          ))
+          val sq0 = "selected" -> (JsBoolean(n.selected): JsValue) :: Nil
+          val sq1 = if (n.fitness.isNaN) sq0 else ("fitness" -> JsNumber(n.fitness)) :: sq0
+          val sq2 = ("chromosome" -> sys.chromosomeFormat.writes(n.chromosome)) :: sq1
+          JsObject(sq2)
         })))
       }
       SettingsIO.write(currentTable -> settings, f.replaceExt("json")) match {
@@ -686,30 +685,44 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
             _settings <- settingsFieldsFromJson(m)
             _genome   <- m.get("genome").fold[JsResult[Vec[Node]]](JsError(s"Field for genome not found")) {
               case JsArray(nj) =>
-                val nst = Try {
-                  val nodes: Vec[Node] = nj.zipWithIndex.map {
-                    case (JsObject(nfj), idx) =>
-                      val m1                = nfj.toMap
-                      val chromosomeJ       = m1("chromosome")
-                      val chromosome        = sys.chromosomeFormat.reads(chromosomeJ).get
-                      val JsNumber(fitNum)  = m1("fitness")
-                      val JsBoolean(sel)    = m1("selected")
-                      new Node(index = idx, chromosome = chromosome, fitness = fitNum.toDouble, selected = sel)
+                val nodes = ((JsSuccess(Vec.empty): JsResult[Vec[Node]]) /: nj.zipWithIndex) {
+                  case (res, (nj0, idx)) =>
+                    val res1 = res.flatMap { sq =>
+                      nj0 match {
+                        case JsObject(nfj) =>
+                          val m1                = nfj.toMap
+                          val chromosomeJ       = m1("chromosome")
+                          val chromosomeT       = sys.chromosomeFormat.reads(chromosomeJ)
+                          val fitnessT = m1.get("fitness").fold(JsSuccess(Double.NaN): JsResult[Double]) {
+                            case JsNumber(fitNum) => JsSuccess(fitNum.toDouble)
+                            case other => JsError(s"Fitness not a JSON number: $other")
+                          }
+                          val selectedT = m1.get("selected").fold(JsSuccess(false): JsResult[Boolean]) {
+                            case JsBoolean(sel) => JsSuccess(sel)
+                            case other => JsError(s"Selected not a JSON boolean: $other")
+                          }
+                          for {
+                            chromosome <- chromosomeT
+                            fitness    <- fitnessT
+                            selected   <- selectedT
+                          } yield {
+                            val node = new Node(index = idx, chromosome = chromosome, fitness = fitness,
+                              selected = selected)
+                            sq :+ node
+                          }
 
-                    case (other, _) => scala.sys.error(s"Not a JSON object $other")
-                  } (breakOut)
-                  nodes
+                        case other => JsError(s"Chromosome entry not a JSON object $other")
+                      }
+                    }
+                    if (res1.isSuccess) res1 else res1.repath(JsPath(idx))  // XXX TODO -- correct?
                 }
-                nst match {
-                  case Success(ns)  => JsSuccess(ns)
-                  case Failure(e)   => JsError(e.getMessage)
-                }
+                nodes
 
-              case other => JsError(s"Not a JSON array $other")
+              case other => JsError(s"Genome not a JSON array $other")
             }
           } yield (_genome, _settings)
 
-        case json => JsError(s"Not a JSON object $json")
+        case json => JsError(s"Settings not a JSON object $json")
       }
 
       SettingsIO.read(file)(settingsR) match {
