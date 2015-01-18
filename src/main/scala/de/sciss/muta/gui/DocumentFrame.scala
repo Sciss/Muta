@@ -16,8 +16,11 @@ package gui
 
 import de.sciss.treetable.TreeTable
 import de.sciss.file.File
-import scala.swing.{Action, SequentialContainer, Panel}
+import scala.concurrent.Future
+import scala.swing.{Action, SequentialContainer}
 import de.sciss.desktop.Window
+
+import scala.util.Try
 
 object DocumentFrame {
   def apply[S <: System](app: GeneticApp[S]): DocumentFrame[S] = new impl.DocumentFrameImpl[S](app)
@@ -45,7 +48,10 @@ trait DocumentFrame[S <: System] {
 
   def open(): Unit
 
-  def load(file: File): Unit
+  def load(file: File, quiet: Boolean = false): Try[Unit]
+  def save(file: File, quiet: Boolean = false): Try[Unit]
+
+  def iterate(n: Int, quiet: Boolean = false): Future[Unit]
 
   type Node <: DocumentFrame.NodeLike[system.Chromosome]
 

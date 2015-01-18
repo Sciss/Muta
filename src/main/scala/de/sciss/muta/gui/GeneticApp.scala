@@ -18,8 +18,10 @@ import javax.swing.UIManager
 
 import de.sciss.desktop.impl.{LogWindowImpl, SwingApplicationImpl, WindowHandlerImpl}
 import de.sciss.desktop.{Desktop, FileDialog, KeyStrokes, Menu, WindowHandler}
+import de.sciss.file.File
 
 import scala.swing.event.Key
+import scala.util.Try
 
 /** The stub to create a genetic algorithm swing application. Usually you will have an object
   * extending this class, which is then the main swing entry point.
@@ -56,7 +58,7 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
     */
   protected def rowHeight = -1
 
-  private def mkDocFrame(): DocumentFrame[S] = {
+  final protected def makeDocumentFrame(): DocumentFrame[S] = {
     // val doc = newDocument() // new Document
     val f = DocumentFrame(app) // (doc)
     configureDocumentFrame(f)
@@ -67,6 +69,14 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
     }
     f
   }
+  
+  final protected def openDocument(file: File): Try[DocumentFrame[S]] = {
+    val fr = makeDocumentFrame()
+    fr.load(file).map { _ =>
+      fr.open()
+      fr
+    }
+  }
 
   protected lazy val menuFactory = {
     import KeyStrokes._
@@ -74,16 +84,14 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
     val itQuit = Item.Quit(app)
     val mFile = Group("file", "File").add(
         Item("new")("New" -> (menu1 + Key.N)) {
-          val fr = mkDocFrame()
+          val fr = makeDocumentFrame()
           fr.open()
         }
       ).add(
         Item("open")("Open..." -> (menu1 + Key.O)) {
           val dlg = FileDialog.open(title = "Open Document")
           dlg.show(None).foreach { file =>
-            val fr = mkDocFrame()
-            fr.load(file)
-            fr.open()
+            openDocument(file)
           }
         }
       ).addLine()

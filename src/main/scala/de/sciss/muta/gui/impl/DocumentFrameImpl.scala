@@ -317,6 +317,11 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     generation  = s.generation
   }
 
+  def iterate(n: Int, quiet: Boolean): Future[Unit] = {
+    mNumIter.setValue(n)
+    ggIter.perform(quiet = quiet)
+  }
+
   def stepEval(fun: sys.Evaluation, glob: sys.Global, genome: Vec[Node], progress: Float => Unit = _ => ()): Unit = {
     var min   = Double.MaxValue
     var max   = Double.MinValue
@@ -398,53 +403,75 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     but
   }
 
-  private def mkProcButton(label: String)(mkProc: => Processor[Any] with Processor.Prepared): Button =
-    new Button(label) {
-      var proc      = Option.empty[Processor[Any]]
-      val progIcon  = new ProgressIcon(33)
+  private object ProcButton {
+    def apply(label: String)(mkProc: => Processor[Any] with Processor.Prepared): ProcButton =
+      new ProcButton(label, mkProc)
+  }
+  private class ProcButton(label: String, mkProc: => Processor[Any] with Processor.Prepared) extends Button(label) {
+    var proc      = Option.empty[Processor[Any]]
+    val progIcon  = new ProgressIcon(33)
 
-      listenTo(this)
-      reactions += {
-        case ButtonClicked(_) =>
-          proc match {
-            case Some(p) => p.abort()
-            case _ =>
-              val p   = mkProc
-              proc    = Some(p)
-              p.addListener {
-                case prog @ Processor.Progress(_, _) => defer {
-                  progIcon.value = prog.toInt
-                  repaint()
-                }
-              }
-              p.start()
-              text            = "\u2716"
-              progIcon.value  = 0
-              icon            = progIcon
-              p.onComplete {
-                case res => defer {
-                  icon  = EmptyIcon
-                  text  = label
-                  proc  = None
-                  res match {
-                    case Failure(ex) => DialogSource.Exception(ex -> label).show(Some(outer.window))
-                    case _ =>
-                  }
-                }
-              }
-          }
-      }
-
-      peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
-      peer.putClientProperty("JButton.segmentPosition", "first")
-      preferredSize = (84, preferredSize.height)
-      minimumSize   = preferredSize
-      maximumSize   = preferredSize
+    listenTo(this)
+    reactions += {
+      case ButtonClicked(_) =>
+        proc.fold[Unit](perform(quiet = false))(_.abort())
     }
+
+    def perform(quiet: Boolean): Future[Unit] = {
+      proc.foreach(_.abort())
+      val p   = mkProc
+      proc    = Some(p)
+      p.addListener {
+        case prog @ Processor.Progress(_, _) => defer {
+          progIcon.value = prog.toInt
+          repaint()
+        }
+      }
+      p.start()
+      text            = "\u2716"
+      progIcon.value  = 0
+      icon            = progIcon
+      p.onComplete {
+        case res => defer {
+          icon  = EmptyIcon
+          text  = label
+          if (proc == Some(p)) proc = None
+          if (!quiet) res match {
+            case Failure(ex) => DialogSource.Exception(ex -> label).show(Some(outer.window))
+            case _ =>
+          }
+        }
+      }
+      p.map(_ => ())
+    }
+
+    peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
+    peer.putClientProperty("JButton.segmentPosition", "first")
+    preferredSize = (84, preferredSize.height)
+    minimumSize   = preferredSize
+    maximumSize   = preferredSize
+  }
+
+  private val mNumIter  = new SpinnerNumberModel(10, 1, 10000, 1)
+  private val ggNumIter = new Spinner(mNumIter)
+  ggNumIter.tooltip = "Number of iterations to perform at once"
+  private val ggIter = ProcButton("Iterate") {
+    val num = mNumIter.getNumber.intValue()
+    val in  = currentTable
+    val p   = new IterProc(in, num, generation.global, evaluation)
+    p.onSuccess {
+      case out => defer {
+        tmTop.updateNodes(out)
+        iterations += num
+        tmBot.updateNodes(Vec.empty)
+      }
+    }
+    p
+  }
 
   val pButtons = new FlowPanel {
     contents += new BoxPanel(Orientation.Horizontal) {
-      val ggGen = mkProcButton("Generate") {
+      val ggGen = ProcButton("Generate") {
         val p = new GenProc(generation)
         p.onSuccess {
           case nodes => defer {
@@ -458,7 +485,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       val ggGenSettings = mkSettingsButton[sys.Generation]("Generation")(sys.generationView)(generation)(generation = _)
 
       val evalOpt = sys.evaluationViewOption.map { evalViewFun =>
-        val ggEval = mkProcButton("Evaluate") {
+        val ggEval = ProcButton("Evaluate") {
           val s = new EvalProc(evaluation, generation.global, currentTable)
           s.onSuccess {
             case _ => defer {
@@ -500,23 +527,6 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       ggFeed.peer.putClientProperty("JButton.buttonType", "segmentedCapsule")
       ggFeed.peer.putClientProperty("JButton.segmentPosition", "only")
       ggFeed.tooltip = "Feed offspring back for next iteration"
-
-      val mNumIter  = new SpinnerNumberModel(10, 1, 10000, 1)
-      val ggNumIter = new Spinner(mNumIter)
-      ggNumIter.tooltip = "Number of iterations to perform at once"
-      val ggIter = mkProcButton("Iterate") {
-        val num = mNumIter.getNumber.intValue()
-        val in  = currentTable
-        val p   = new IterProc(in, num, generation.global, evaluation)
-        p.onSuccess {
-          case out => defer {
-            tmTop.updateNodes(out)
-            iterations += num
-            tmBot.updateNodes(Vec.empty)
-          }
-        }
-        p
-      }
 
       contents ++= Seq(            ggGen  , ggGenSettings)
       evalOpt.foreach { case (ggEval, ggEvalSettings) => contents ++= Seq(HStrut( 8), ggEval , ggEvalSettings) }
@@ -585,7 +595,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       dlg.show(Some(me))
     }
 
-    def save(f: File): Unit = {
+    def save(f: File, quiet: Boolean): Try[Unit] = {
       // Note: cannot use auto formats here, because node indices are implied from JsArray indices
       implicit val documentW = Writes[Document] { case (nodes, settings) =>
         JsObject(settingsFieldsToJson() :+ ("genome" -> JsArray(nodes.map { n =>
@@ -595,14 +605,16 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
           JsObject(sq2)
         })))
       }
-      SettingsIO.write(currentTable -> settings, f.replaceExt("json")) match {
+      val res = SettingsIO.write(currentTable -> settings, f.replaceExt("json"))
+      res match {
         case Success(_) =>
           file = Some(f)
           updateTitle()
         case Failure(e: Exception) =>
-          showDialog(e -> "Save Document")
+          if (!quiet) showDialog(e -> "Save Document")
         case Failure(e) => e.printStackTrace()
       }
+      res
     }
 
     def updateTitle(): Unit = title = file.fold(app.name)(f => s"${f.base} : ${app.name}")
@@ -626,10 +638,10 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       }
     })
     bindMenu("file.save", Action("") {
-      (file orElse saveDialog()).foreach(save)
+      (file orElse saveDialog()).foreach(save(_, quiet = false))
     })
     bindMenu("file.save-as", Action("") {
-      saveDialog().foreach(save)
+      saveDialog().foreach(save(_, quiet = false))
     })
 
     //    bindMenu("file.export.table", Action("") {
@@ -676,7 +688,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
     def bindMenu2(path: String, action: Action): Unit = bindMenu(path, action)
 
-    def load(file: File): Unit = {
+    def load(file: File, quiet: Boolean): Try[Unit] = {
       // Note: cannot use auto formats here, because node indices are implied from JsArray indices
       val settingsR = Reads[Document] {
         case JsObject(sq) =>
@@ -725,22 +737,27 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
         case json => JsError(s"Settings not a JSON object $json")
       }
 
-      SettingsIO.read(file)(settingsR) match {
+      val res = SettingsIO.read(file)(settingsR)
+      res match {
         case Success((gen, set)) =>
           settings      = set
           currentTable  = gen
+          me.file       = Some(file)
+          updateTitle()
 
         case Failure(e: Exception) =>
-          showDialog(e -> "Open Document")
+          if (!quiet) showDialog(e -> "Open Document")
 
         case Failure(e) => e.printStackTrace()
       }
+      res.map(_ => ())
     }
   }
 
   def open(): Unit = window.open()
 
-  def load(file: File): Unit = window.load(file)
+  def load(file: File, quiet: Boolean): Try[Unit] = window.load(file, quiet = quiet)
+  def save(file: File, quiet: Boolean): Try[Unit] = window.save(file, quiet = quiet)
 
   //  def exportTableAsPDF(f: File, genome: sys.GenomeVal): Unit = {
   //    // XXX TODO
