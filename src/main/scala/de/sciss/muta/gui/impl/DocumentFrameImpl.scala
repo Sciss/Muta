@@ -586,6 +586,8 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     }
   }
 
+  def file: Option[File] = window.file
+
   object window extends WindowImpl { me =>
     def handler = app.windowHandler
     contents    = ggSplit

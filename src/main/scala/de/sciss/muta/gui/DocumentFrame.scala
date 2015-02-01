@@ -48,6 +48,8 @@ trait DocumentFrame[S <: System] {
 
   def open(): Unit
 
+  def file: Option[File]
+
   def load(file: File, quiet: Boolean = false): Try[Unit]
   def save(file: File, quiet: Boolean = false): Try[Unit]
 
