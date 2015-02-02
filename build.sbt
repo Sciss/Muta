@@ -1,6 +1,6 @@
 name          := "Muta"
 
-version       := "0.6.0-SNAPSHOT"
+version       := "0.6.0"
 
 organization  := "de.sciss"
 
@@ -18,7 +18,7 @@ resolvers     += "Typesafe Releases" at "https://repo.typesafe.com/typesafe/rele
 
 libraryDependencies ++= Seq(
   "de.sciss" %% "fileutil"         % "1.1.1",    // Easy file representation
-  "de.sciss" %% "desktop"          % "0.6.0",    // Application framework
+  "de.sciss" %% "desktop"          % "0.7.0",    // Application framework
   "de.sciss" %% "treetable-scala"  % "1.3.7",    // Tree-table widget
   "de.sciss" %% "guiflitz"         % "0.5.0",    // Automatic configuration GUIs
   "de.sciss" %% "processor"        % "0.4.0",    // Asynchronous iteration
