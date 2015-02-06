@@ -99,4 +99,6 @@ trait System {
   def chromosomeEditorOption: Option[(swing.Component, () => Chromosome, Chromosome => Unit)] = None
 
   final def hasChromosomeEditor: Boolean = chromosomeEditorOption.isDefined
+
+  def normalizeFitness: Boolean = true
 }

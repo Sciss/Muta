@@ -18,6 +18,7 @@ package impl
 import java.awt.EventQueue
 import javax.swing.{SpinnerNumberModel, JCheckBox, SwingConstants}
 
+import de.sciss.desktop
 import de.sciss.desktop.impl.WindowImpl
 import de.sciss.desktop.{DialogSource, FileDialog, Window}
 import de.sciss.file._
@@ -108,7 +109,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     def isEditable(node: Node) = sys.hasHumanEvaluation
   }
 
-  val selCol    = new TreeColumnModel.Column[Node, Boolean]("Selected") {
+  val selCol    = new TreeColumnModel.Column[Node, Boolean]("Select") {
     def apply     (node: Node): Boolean = node.selected
     def update    (node: Node, value: Boolean): Unit = node.selected = value
     def isEditable(node: Node) = sys.hasHumanSelection
@@ -132,15 +133,15 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   def adjustColumns(tt: TreeTable[_, _]): Unit = {
     val tabCM = tt.peer.getColumnModel
     val sz    = tabCM.getColumnCount
-    tabCM.getColumn(0).setPreferredWidth( 48)
-    tabCM.getColumn(0).setMaxWidth      ( 48)
+    tabCM.getColumn(0).setPreferredWidth( 54)
+    tabCM.getColumn(0).setMaxWidth      ( 54)
     tabCM.getColumn(1).setPreferredWidth(768)
     if (sz >= 4) {
-      val fitWidth = rating.fold(72)(_.preferredSize.width + 48)  // account for table column sort-icon width!
+      val fitWidth = rating.fold(88)(_.preferredSize.width + 48)  // account for table column sort-icon width!
       tabCM.getColumn(2).setPreferredWidth(fitWidth)
-      tabCM.getColumn(2).setMaxWidth      (128)
-      tabCM.getColumn(3).setPreferredWidth( 56) // XXX TODO: should be rendered as checkbox not string
-      tabCM.getColumn(3).setMaxWidth      ( 56) // XXX TODO: should be rendered as checkbox not string
+      tabCM.getColumn(2).setMaxWidth      (168)
+      tabCM.getColumn(3).setPreferredWidth( 62)
+      tabCM.getColumn(3).setMaxWidth      ( 62)
     }
   }
 
@@ -291,6 +292,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   val mainTable     = mkTreeTable(tmTop, tcmTop)
   val ggScrollTop   = new ScrollPane(mainTable)
   val breedingTable = mkTreeTable(tmBot, tcmBot)
+  breedingTable.visibleRowCount = 1
   val ggScrollBot   = new ScrollPane(breedingTable)
 
   val topPanel      = new FlowPanel(pInfo.component)
@@ -322,6 +324,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     ggIter.perform(quiet = quiet)
   }
 
+  // XXX TODO --- allow for parallelization
   def stepEval(fun: sys.Evaluation, glob: sys.Global, genome: Vec[Node], progress: Float => Unit = _ => ()): Unit = {
     var min   = Double.MaxValue
     var max   = Double.MinValue
@@ -334,7 +337,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
       progress((idx + 1).toFloat / sz)
     }
     // normalize
-    if (max > min) {
+    if (sys.normalizeFitness && max > min) {
       val off     = -min
       val scale   = 1.0/(max - min)
       // XXX TODO -- should not do this on the processing thread
@@ -549,7 +552,7 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
   }
 
   val ggSplit = new SplitPane(Orientation.Horizontal) {
-    resizeWeight    = 0.5
+    resizeWeight    = 1.0 // 0.5
     topComponent    = splitTop
     bottomComponent = splitBot
   }
@@ -667,10 +670,11 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     def open(): Unit = {
       pack()
       val w = window.component.peer
+      desktop.Util.centerOnScreen(window)
       val gc = w.getGraphicsConfiguration
       if (gc != null) {
         val r1    = gc.getBounds
-        val r2    = w . getBounds
+        val r2    = w .getBounds
         val hOver = r2.x + r2.width  > r1.x + r1.width
         val vOver = r2.y + r2.height > r1.y + r1.height
         if (hOver || vOver) {
@@ -803,15 +807,23 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
     protected def body(): Vec[Node] = {
       // we want to stop the iteration with evaluation, so that the fitness values are shown in the top pane
       // ; ensure that initially the nodes have been evaluation
-      if (in.exists(_.fitness.isNaN)) stepEval(eval, glob, in)
-      checkAborted()
+      val needsInitialEval = in.exists(_.fitness.isNaN)
+      val numOff  = if (needsInitialEval) 1 else 0
+      val numEval = num + numOff
+
+      if (needsInitialEval) stepEval(eval, glob, in, { p =>
+        progress = p / numEval
+        checkAborted()
+      })
       val out = (in /: (0 until num)) { (itIn, idx) =>
         stepSelect(itIn)
         val itOut = stepBreed(itIn)
-        stepEval(eval, glob, itOut)
-        val f = (idx + 1).toFloat / num
-        progress = f
-        checkAborted()
+        val off1  = idx + numOff
+        stepEval(eval, glob, itOut, { p =>
+          val f = (off1 + p) / numEval
+          progress = f
+          checkAborted()
+        })
         itOut
       }
       out

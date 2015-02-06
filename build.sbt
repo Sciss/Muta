@@ -1,6 +1,6 @@
 name          := "Muta"
 
-version       := "0.6.0"
+version       := "0.7.0-SNAPSHOT"
 
 organization  := "de.sciss"
 
@@ -56,4 +56,3 @@ pomExtra := { val n = name.value
   </developer>
 </developers>
 }
-
