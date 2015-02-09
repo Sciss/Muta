@@ -308,6 +308,10 @@ final class DocumentFrameImpl[S <: System](val application: GeneticApp[S]) exten
 
   def selectedNodes = mainTable.selection.paths.map(_.last).toIndexedSeq.sortBy(-_.fitness)
 
+  def genome: system.GenomeSel = currentTable.map { n =>
+    (n.chromosome, n.fitness, n.selected)
+  }
+
   type Document = (Vec[Node], SysSettings)
 
   def settings: SysSettings = Settings(sys)(info, generation, evaluation, selection, breeding)

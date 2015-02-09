@@ -43,6 +43,8 @@ trait DocumentFrame[S <: System] {
   var info      : HeaderInfo
   var iterations: Int
 
+  def genome: system.GenomeSel
+
   def mainTable     : TreeTable[_, _]
   def breedingTable : TreeTable[_, _]
 
@@ -58,6 +60,7 @@ trait DocumentFrame[S <: System] {
   type Node <: DocumentFrame.NodeLike[system.Chromosome]
 
   def selectedNodes: Vec[Node]
+  var currentTable : Vec[Node]
 
   def topPanel: SequentialContainer
 
