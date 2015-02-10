@@ -26,13 +26,16 @@ import scala.util.Try
 /** The stub to create a genetic algorithm swing application. Usually you will have an object
   * extending this class, which is then the main swing entry point.
   */
-abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationImpl("Genetic Algorithm") {
+abstract class GeneticApp[S <: System](val system: S, name: String = "Genetic Algorithm")
+  extends SwingApplicationImpl(name) {
+
   app =>
 
   type Document = Unit // gui.Document
 
   protected def useNimbus         = Desktop.isLinux
   protected def useInternalFrames = !Desktop.isMac
+  protected def useLogWindow      = true
 
   // protected def newDocument(): Document
 
@@ -48,7 +51,7 @@ abstract class GeneticApp[S <: System](val system: S) extends SwingApplicationIm
       case info if info.getName == "Nimbus" => info.getClassName
     }
     nimbusOption.foreach(UIManager.setLookAndFeel)
-    new LogWindowImpl {
+    if (useLogWindow) new LogWindowImpl {
       def handler: WindowHandler = app.windowHandler
     }
   }
